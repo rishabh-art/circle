@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Circle — Room</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="circle.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --terracotta:#E2725B; --cream:#F5E6CA; --sage:#8BA888; --warmwhite:#FFF8F1; --espresso:#3E2723;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; background:var(--espresso); color:var(--warmwhite); font-family:'Raleway',sans-serif; overflow:hidden;}
+  h1,h2,h3{font-family:'Playfair Display',serif; font-weight:600;}
+
+  #entry{position:fixed; inset:0; background:var(--warmwhite); color:var(--espresso); display:flex; align-items:center; justify-content:center; z-index:20;}
+  .entry-card{text-align:center; max-width:360px; padding:0 24px;}
+  .entry-eyebrow{font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:18px;}
+  .entry-card h1{font-size:32px; margin-bottom:10px;}
+  .entry-card p{font-size:14.5px; opacity:0.6; margin-bottom:32px; line-height:1.6;}
+  input[type=text]{width:100%; padding:14px 18px; border-radius:100px; border:1px solid rgba(62,39,35,0.15); background:var(--cream); font-family:'Raleway'; font-size:14px; color:var(--espresso); margin-bottom:16px;}
+  input[type=text]:focus{outline:none; border-color:var(--terracotta);}
+  .btn{display:inline-block; padding:14px 30px; border-radius:100px; font-size:14px; font-weight:600; cursor:pointer; border:none; width:100%;}
+  .btn-primary{background:var(--espresso); color:var(--warmwhite);}
+  .btn-primary:hover{opacity:0.88;}
+
+  #room{height:100%; display:flex; flex-direction:column;}
+  header{padding:18px 28px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,248,241,0.08);}
+  .room-name{font-family:'Playfair Display',serif; font-size:17px;}
+  .room-name span{color:var(--terracotta);}
+  .count{font-size:12px; opacity:0.5; letter-spacing:0.05em;}
+
+  #grid{flex:1; gap:14px; padding:20px 28px; overflow:hidden;}
+  .tile{position:relative; background:#2a1a17; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  .tile video{width:100%; height:100%; object-fit:contain; background:#1c1210;}
+  .tile video.hidden{display:none;}
+  .avatar{width:64px; height:64px; border-radius:50%; background:var(--terracotta); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-size:24px; color:var(--warmwhite);}
+  .tile-label{position:absolute; bottom:10px; left:12px; font-size:12px; background:rgba(62,39,35,0.6); backdrop-filter:blur(4px); padding:4px 12px; border-radius:100px; letter-spacing:0.02em; display:flex; align-items:center; gap:6px;}
+  .live-dot{width:6px; height:6px; border-radius:50%; background:var(--sage);}
+
+  .controls{display:flex; justify-content:center; gap:14px; padding:24px; border-top:1px solid rgba(255,248,241,0.08);}
+  .ctrl{width:52px; height:52px; border-radius:50%; border:1px solid rgba(255,248,241,0.15); background:rgba(255,248,241,0.05); color:var(--warmwhite); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s;}
+  .ctrl:hover{background:rgba(255,248,241,0.12);}
+  .ctrl.off{background:var(--terracotta); border-color:var(--terracotta);}
+  .ctrl.leave{background:var(--terracotta); border-color:var(--terracotta);}
+  .ctrl svg{width:20px; height:20px;}
+
+  @media(max-width:680px){ header{padding:14px 18px;} #grid{padding:12px;} }
+</style>
+</head>
+<body>
+
+<div id="entry" style="visibility:hidden;">
+  <div class="entry-card">
+    <div class="entry-eyebrow">Entering a Circle</div>
+    <h1 id="circleTitle">Circle</h1>
+    <p>Enter with the name you'd like others to see.</p>
+    <input type="text" id="displayName" placeholder="Your name" maxlength="30">
+    <button class="btn btn-primary" onclick="enterRoom()">Join</button>
+  </div>
+</div>
+
+<div id="room" style="display:none;">
+  <header>
+    <div class="room-name">circle<span>.</span> — <span id="roomNameLabel"></span></div>
+    <div class="count" id="peerCount">1 here</div>
+  </header>
+  <div id="grid"></div>
+  <div class="controls">
+    <div class="ctrl" id="micBtn" onclick="toggleMic()" title="Mute/unmute">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5.5A3.5 3.5 0 0 0 12 15z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3"/></svg>
+    </div>
+    <div class="ctrl" id="camBtn" onclick="toggleCam()" title="Camera on/off">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M21 8.5v7L16 13v-2l5-2.5z"/></svg>
+    </div>
+    <div class="ctrl leave" onclick="leaveRoom()" title="Leave">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://jkgkyaxvsbcpzpefsnvz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_S0PYKqfSmlFOQ4t5W6vJFg_WzJWUr7m';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+const params = new URLSearchParams(window.location.search);
+const circleSlug = params.get('circle');
+const myPeerId = 'p-' + Math.random().toString(36).slice(2,10);
+
+let localStream = null;
+let displayName = '';
+let channel = null;
+const peers = {}; // peerId -> RTCPeerConnection
+const knownPeers = new Set();
+
+if(!circleSlug){
+  showInvalid();
+} else {
+  checkCircleExists();
+}
+
+function showInvalid(){
+  document.getElementById('circleTitle').textContent = 'No Circle found';
+  document.querySelector('.entry-card p').textContent = 'This link isn\'t valid. Ask for a fresh one, or create a new Circle.';
+  document.getElementById('displayName').style.display = 'none';
+  document.querySelector('.entry-card .btn').style.display = 'none';
+  document.getElementById('entry').style.visibility = 'visible';
+}
+
+async function checkCircleExists(){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/circles?slug=eq.' + encodeURIComponent(circleSlug) + '&select=name', {
+      headers:{ 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    const rows = await res.json();
+    if(!res.ok || !rows.length){ showInvalid(); return; }
+    document.getElementById('circleTitle').textContent = rows[0].name || 'Circle';
+    document.getElementById('entry').style.visibility = 'visible';
+  }catch(err){
+    showInvalid();
+  }
+}
+
+async function enterRoom(){
+  displayName = document.getElementById('displayName').value.trim() || 'Guest';
+  if(!circleSlug) return;
+
+  try{
+    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
+  }catch(err){
+    alert('Camera/microphone access is needed to join.');
+    return;
+  }
+
+  document.getElementById('entry').style.display = 'none';
+  document.getElementById('room').style.display = 'flex';
+  document.getElementById('roomNameLabel').textContent = document.getElementById('circleTitle').textContent;
+
+  addTile(myPeerId, displayName + ' (you)', localStream);
+
+  channel = sb.channel('circle:' + circleSlug, { config: { broadcast: { self:false } } });
+
+  channel.on('broadcast', { event:'join' }, ({ payload }) => {
+    if(payload.peerId === myPeerId) return;
+    if(!knownPeers.has(payload.peerId)){
+      knownPeers.add(payload.peerId);
+      createPeerConnection(payload.peerId, payload.name, true);
+    }
+  });
+
+  channel.on('broadcast', { event:'signal' }, ({ payload }) => {
+    if(payload.to !== myPeerId) return;
+    handleSignal(payload);
+  });
+
+  channel.on('broadcast', { event:'leave' }, ({ payload }) => {
+    removePeer(payload.peerId);
+  });
+
+  channel.on('broadcast', { event:'camstate' }, ({ payload }) => {
+    setTileCamState(payload.peerId, payload.camOn);
+  });
+
+  channel.subscribe((status) => {
+    if(status === 'SUBSCRIBED'){
+      channel.send({ type:'broadcast', event:'join', payload:{ peerId:myPeerId, name:displayName } });
+    }
+  });
+
+  window.addEventListener('beforeunload', () => {
+    channel.send({ type:'broadcast', event:'leave', payload:{ peerId:myPeerId } });
+  });
+}
+
+function createPeerConnection(peerId, name, isInitiator){
+  const pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
+  peers[peerId] = pc;
+
+  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+  pc.onicecandidate = (e) => {
+    if(e.candidate){
+      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'ice', data:e.candidate } });
+    }
+  };
+
+  pc.ontrack = (e) => {
+    addTile(peerId, name, e.streams[0]);
+    const camOn = localStream.getVideoTracks()[0].enabled;
+    channel.send({ type:'broadcast', event:'camstate', payload:{ peerId:myPeerId, camOn } });
+  };
+
+  if(isInitiator){
+    pc.onnegotiationneeded = async () => {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'offer', data:offer, name:displayName } });
+    };
+  }
+
+  return pc;
+}
+
+async function handleSignal(payload){
+  const { from, kind, data, name } = payload;
+  let pc = peers[from];
+
+  if(kind === 'offer'){
+    if(!pc){
+      knownPeers.add(from);
+      pc = createPeerConnection(from, name || 'Guest', false);
+    }
+    await pc.setRemoteDescription(new RTCSessionDescription(data));
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:from, kind:'answer', data:answer } });
+  } else if(kind === 'answer'){
+    if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data));
+  } else if(kind === 'ice'){
+    if(pc){ try{ await pc.addIceCandidate(data); }catch(e){} }
+  }
+}
+
+function initials(name){
+  const clean = name.replace(/\s*\(you\)\s*$/i, '').trim();
+  return clean.split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+
+function addTile(peerId, name, stream){
+  let tile = document.getElementById('tile-' + peerId);
+  if(!tile){
+    tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.id = 'tile-' + peerId;
+    tile.innerHTML = '<video autoplay playsinline' + (peerId===myPeerId ? ' muted' : '') + '></video>'
+      + '<div class="avatar" style="display:none;">'+initials(name)+'</div>'
+      + '<div class="tile-label"><span class="live-dot"></span>'+name+'</div>';
+    document.getElementById('grid').appendChild(tile);
+  }
+  tile.querySelector('video').srcObject = stream;
+  updateCount();
+  layoutGrid();
+}
+
+function layoutGrid(){
+  const grid = document.getElementById('grid');
+  const tiles = Array.from(grid.children);
+  const n = tiles.length || 1;
+  const availW = window.innerWidth - 56;
+  const availH = window.innerHeight - 170;
+  const gap = 14;
+
+  const cols = Math.min(3, n);
+  const rows = Math.ceil(n / cols);
+
+  const tileW = Math.floor((availW - gap*(cols-1)) / cols);
+  const tileH = Math.floor((availH - gap*(rows-1)) / rows);
+
+  grid.style.display = 'flex';
+  grid.style.flexWrap = 'wrap';
+  grid.style.alignContent = 'center';
+  grid.style.justifyContent = 'center';
+
+  tiles.forEach(t => {
+    t.style.width = tileW + 'px';
+    t.style.height = tileH + 'px';
+  });
+}
+window.addEventListener('resize', layoutGrid);
+
+function removePeer(peerId){
+  if(peers[peerId]){ peers[peerId].close(); delete peers[peerId]; }
+  knownPeers.delete(peerId);
+  const tile = document.getElementById('tile-' + peerId);
+  if(tile) tile.remove();
+  updateCount();
+  layoutGrid();
+}
+
+function updateCount(){
+  const n = document.getElementById('grid').children.length;
+  document.getElementById('peerCount').textContent = n + (n===1 ? ' here' : ' here');
+}
+
+function toggleMic(){
+  const track = localStream.getAudioTracks()[0];
+  track.enabled = !track.enabled;
+  document.getElementById('micBtn').classList.toggle('off', !track.enabled);
+}
+function toggleCam(){
+  const track = localStream.getVideoTracks()[0];
+  track.enabled = !track.enabled;
+  document.getElementById('camBtn').classList.toggle('off', !track.enabled);
+  setTileCamState(myPeerId, track.enabled);
+  if(channel) channel.send({ type:'broadcast', event:'camstate', payload:{ peerId:myPeerId, camOn:track.enabled } });
+}
+
+function setTileCamState(peerId, camOn){
+  const tile = document.getElementById('tile-' + peerId);
+  if(!tile) return;
+  tile.querySelector('video').classList.toggle('hidden', !camOn);
+  tile.querySelector('.avatar').style.display = camOn ? 'none' : 'flex';
+}
+function leaveRoom(){
+  if(channel) channel.send({ type:'broadcast', event:'leave', payload:{ peerId:myPeerId } });
+  Object.values(peers).forEach(pc => pc.close());
+  if(localStream) localStream.getTracks().forEach(t => t.stop());
+  window.location.href = 'index.html';
+}
+</script>
+</body>
+</html>

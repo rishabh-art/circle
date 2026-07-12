@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Circle — A quieter way to meet</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="circle.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --terracotta:#E2725B; --cream:#F5E6CA; --sage:#8BA888; --warmwhite:#FFF8F1; --espresso:#3E2723;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--warmwhite); color:var(--espresso); font-family:'Raleway',sans-serif; font-weight:400;}
+  h1,h2,h3{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:-0.01em;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 32px;}
+
+  /* Nav */
+  nav{display:flex; justify-content:space-between; align-items:center; padding:36px 0;}
+  .logo{font-family:'Playfair Display',serif; font-size:22px; font-weight:600;}
+  .logo span{color:var(--terracotta);}
+  .nav-links a{font-size:14px; margin-left:36px; opacity:0.75; transition:opacity .2s;}
+  .nav-links a:hover{opacity:1;}
+
+  /* Hero */
+  .hero{padding:100px 0 120px; text-align:center;}
+  .hero-eyebrow{font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:28px;}
+  .hero h1{font-size:58px; line-height:1.12; max-width:680px; margin:0 auto 22px; letter-spacing:-0.02em;}
+  .hero p{font-size:16.5px; opacity:0.62; max-width:420px; margin:0 auto 44px; line-height:1.7; font-weight:300;}
+  .hero-cta{display:flex; gap:14px; justify-content:center; align-items:center; flex-wrap:wrap;}
+
+  .btn{display:inline-block; padding:14px 30px; border-radius:100px; font-size:14px; font-weight:600; cursor:pointer; transition:transform .15s ease, opacity .15s ease; border:none;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn-primary{background:var(--espresso); color:var(--warmwhite);}
+  .btn-primary:hover{opacity:0.88;}
+  .btn-ghost{background:transparent; color:var(--espresso); border:1px solid rgba(62,39,35,0.2);}
+  .btn-ghost:hover{border-color:rgba(62,39,35,0.5);}
+
+  /* Circle visual */
+  .circle-visual{width:220px; height:220px; margin:70px auto 0; position:relative;}
+  .ring{position:absolute; inset:0; border:1px solid rgba(62,39,35,0.15); border-radius:50%; animation:spin 40s linear infinite;}
+  .ring.r2{inset:30px; border-color:rgba(226,114,91,0.25); animation:spin 30s linear infinite reverse;}
+  .ring.r3{inset:60px; border-color:rgba(139,168,136,0.3); animation:spin 22s linear infinite;}
+  .dot{position:absolute; width:10px; height:10px; border-radius:50%; background:var(--terracotta); animation:pulse 3.5s ease-in-out infinite;}
+  .dot:nth-child(5){animation-delay:0.6s;}
+  .dot:nth-child(6){animation-delay:1.2s;}
+
+  @keyframes spin{ from{transform:rotate(0deg);} to{transform:rotate(360deg);} }
+  @keyframes pulse{ 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:0.5; transform:scale(0.85);} }
+
+  /* Section: how it works */
+  .section{padding:90px 0; border-top:1px solid rgba(62,39,35,0.08);}
+  .section-label{font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:14px;}
+  .section h2{font-size:34px; max-width:520px; margin-bottom:60px;}
+
+  .steps{display:grid; grid-template-columns:repeat(3,1fr); gap:48px;}
+  .step-num{font-family:'Playfair Display',serif; font-size:28px; color:var(--terracotta); margin-bottom:16px;}
+  .step h3{font-size:19px; margin-bottom:10px; font-weight:600;}
+  .step p{font-size:14.5px; opacity:0.65; line-height:1.6;}
+
+  /* Create circle card (functional demo) */
+  .demo-card{background:var(--cream); border-radius:24px; padding:48px; margin-top:40px;}
+  .demo-card h3{font-size:22px; margin-bottom:8px;}
+  .demo-card p{font-size:14px; opacity:0.65; margin-bottom:28px;}
+  .demo-form{display:flex; gap:12px; flex-wrap:wrap;}
+  input[type=text]{flex:1; min-width:220px; padding:14px 18px; border-radius:100px; border:1px solid rgba(62,39,35,0.15); background:var(--warmwhite); font-family:'Raleway'; font-size:14px; color:var(--espresso);}
+  input[type=text]:focus{outline:none; border-color:var(--terracotta);}
+  #result{margin-top:20px; font-size:14px;}
+  #result a{color:var(--terracotta); font-weight:600; border-bottom:1px solid var(--terracotta);}
+
+  /* Principles */
+  .principles{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:rgba(62,39,35,0.08); border-radius:16px; overflow:hidden;}
+  .principle{background:var(--warmwhite); padding:36px;}
+  .principle h3{font-size:16px; margin-bottom:8px; display:flex; align-items:center; gap:10px;}
+  .principle-mark{width:6px; height:6px; border-radius:50%; background:var(--sage); display:inline-block;}
+  .principle p{font-size:14px; opacity:0.65; line-height:1.6;}
+  .result-link{color:var(--sage); font-weight:600;}
+
+  footer{padding:60px 0; text-align:center; opacity:0.5; font-size:13px;}
+
+  @media(max-width:680px){
+    .hero h1{font-size:38px;}
+    .steps{grid-template-columns:1fr;}
+    .principles{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <a href="https://setu.palrishabh.com" target="_blank" class="logo">circle<span>.</span></a>
+    <div class="nav-links">
+      <a href="#how">How it works</a>
+      <a href="#create">Start a Circle</a>
+    </div>
+  </nav>
+</div>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-eyebrow">One link. One room. No setup.</div>
+    <h1>Meetings without<br>the overhead.</h1>
+    <p>Create a Circle, send the link, and everyone who has it can join instantly — no accounts, no downloads, no waiting room.</p>
+    <div class="hero-cta">
+      <a href="#create" class="btn btn-primary">Start a Circle</a>
+      <a href="#how" class="btn btn-ghost">See how it works</a>
+    </div>
+
+    <div class="circle-visual">
+      <div class="ring"></div>
+      <div class="ring r2"></div>
+      <div class="ring r3"></div>
+      <div class="dot" style="top:0; left:50%; transform:translate(-50%,-50%); background:var(--sage);"></div>
+      <div class="dot" style="bottom:14%; left:14%; background:var(--terracotta);"></div>
+      <div class="dot" style="bottom:14%; right:14%; background:var(--sage);"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="how">
+  <div class="wrap">
+    <div class="section-label">How it works</div>
+    <h2>Three steps, start to finish.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Create</h3>
+        <p>Name your Circle. It exists the moment you do — no configuration.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Share</h3>
+        <p>Send the link. Anyone who has it can join, from any browser.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Meet</h3>
+        <p>Camera on, one click, you're in. No sign-in, no app install.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="create">
+  <div class="wrap">
+    <div class="section-label">Get started</div>
+    <h2>Create your first Circle.</h2>
+    <div class="demo-card">
+      <h3>Name it</h3>
+      <p>This creates a real, shareable link.</p>
+      <div class="demo-form">
+        <input type="text" id="circleName" placeholder="e.g. Weekly Standup" maxlength="60">
+        <button class="btn btn-primary" onclick="createCircle()">Create Circle</button>
+      </div>
+      <div id="result"></div>
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">What you get</div>
+    <h2>Fewer steps between deciding to meet and meeting.</h2>
+    <div class="principles">
+      <div class="principle"><h3><span class="principle-mark"></span>No account, ever</h3><p>Not for you, not for anyone you invite. The link is all that's needed to join.</p></div>
+      <div class="principle"><h3><span class="principle-mark"></span>Nothing to configure</h3><p>No settings panel, no permissions to assign. A Circle works the same way every time.</p></div>
+      <div class="principle"><h3><span class="principle-mark"></span>Only who you invited</h3><p>No public directory, no discoverability. A Circle is only ever found by its link.</p></div>
+      <div class="principle"><h3><span class="principle-mark"></span>Works on any device</h3><p>Runs in the browser you already have open. Nothing to install.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>circle by <a href="https://setu.palrishabh.com" target="_blank" style="border-bottom:1px solid currentColor;">setu™</a><br><span style="opacity:0.6; font-size:11px;">© setu™ 2026</span></footer>
+
+<script>
+// Supabase config — publishable key only (safe for browser; RLS controls access).
+const SUPABASE_URL = 'https://jkgkyaxvsbcpzpefsnvz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_S0PYKqfSmlFOQ4t5W6vJFg_WzJWUr7m';
+
+async function createCircle(){
+  const name = document.getElementById('circleName').value.trim();
+  const result = document.getElementById('result');
+  if(!name){ result.innerHTML = '<span style="color:var(--terracotta)">Give your Circle a name first.</span>'; return; }
+
+  const slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'') + '-' + Math.random().toString(36).slice(2,6);
+  result.textContent = 'Forming your Circle…';
+
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/circles', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ name: name, slug: slug })
+    });
+    if(!res.ok) throw new Error('Request failed');
+    const link = window.location.origin + window.location.pathname.replace('index.html','') + 'room.html?circle=' + slug;
+    result.innerHTML = 'Your Circle is ready: <a href="'+link+'" target="_blank">'+link+'</a>';
+  }catch(err){
+    result.innerHTML = '<span style="color:var(--terracotta)">Couldn\'t reach the database — check your Supabase setup.</span>';
+  }
+}
+</script>
+</body>
+</html>
