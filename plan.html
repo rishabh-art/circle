@@ -99,6 +99,28 @@
   .hover-empty{font-size:13px; opacity:0.55; line-height:1.6;}
   .hover-names{font-size:13px; opacity:0.8; line-height:1.7;}
 
+  .link-row{display:flex; align-items:center; gap:10px; margin-top:18px; max-width:520px;}
+  .link-text{
+    flex:1; min-width:0; background:var(--cream); border:1px solid rgba(62,39,35,0.15); border-radius:100px;
+    padding:11px 18px; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    cursor:pointer; color:var(--espresso); opacity:0.85;
+  }
+  .link-text:hover{opacity:1; border-color:rgba(62,39,35,0.3);}
+  .copy-btn{
+    flex-shrink:0; width:42px; height:42px; border-radius:50%; border:1px solid rgba(62,39,35,0.15);
+    background:var(--espresso); color:var(--warmwhite); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  .copy-btn:hover{opacity:0.88; transform:translateY(-1px);}
+  .copy-btn svg{width:17px; height:17px;}
+
+  .toast{
+    position:fixed; left:50%; bottom:32px; transform:translate(-50%,16px); background:var(--espresso); color:var(--warmwhite);
+    font-size:13.5px; font-weight:500; padding:13px 24px; border-radius:100px; box-shadow:0 8px 24px rgba(62,39,35,0.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+
   footer{padding:60px 0; text-align:center; opacity:0.5; font-size:13px;}
 
   @media(max-width:680px){
@@ -178,6 +200,12 @@
     <div class="eyebrow">Plan a meeting</div>
     <h1 id="planTitleDisplay">Loading…</h1>
     <p>Mark every time that could work for you — click a slot, or click and drag across several.</p>
+    <div class="link-row" id="linkRow" style="display:none;">
+      <span class="link-text" id="linkText" onclick="copyPlanLink()"></span>
+      <button class="copy-btn" id="copyBtn" onclick="copyPlanLink()" type="button" title="Copy link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1.5 1.5"/><path d="M15 12a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1.5-1.5"/></svg>
+      </button>
+    </div>
   </div>
   <section class="section" id="respondBody">
     <div class="wrap">
@@ -223,6 +251,8 @@
 </div>
 
 <footer>circle by <a href="https://setu.palrishabh.com" target="_blank" style="border-bottom:1px solid currentColor;">setu™</a><br><span style="opacity:0.6; font-size:11px;">© setu™ 2026</span></footer>
+
+<div class="toast" id="toast">Link copied</div>
 
 <script>
 // Supabase config — publishable key only (safe for browser; RLS controls access). Same project as index.html/room.html.
@@ -328,12 +358,54 @@ async function initRespond(){
   }catch(err){ showInvalidPlan(); return; }
 
   document.getElementById('planTitleDisplay').textContent = plan.title;
+  showPlanLink();
   days = plan.days;
   times = generateTimes(plan.time_start, plan.time_end, plan.slot_minutes);
 
   renderGrid('selectGrid', true);
   updateSelectedSummary();
   await loadResults();
+}
+
+function showPlanLink(){
+  const url = window.location.origin + window.location.pathname + '?p=' + planSlug;
+  const linkEl = document.getElementById('linkText');
+  linkEl.textContent = url;
+  linkEl.dataset.full = url;
+  linkEl.title = url;
+  document.getElementById('linkRow').style.display = 'flex';
+}
+
+let toastTimer = null;
+function showToast(message){
+  const t = document.getElementById('toast');
+  t.textContent = message;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function copyPlanLink(){
+  const url = document.getElementById('linkText').dataset.full;
+  if(!url) return;
+
+  const fallbackCopy = () => {
+    const temp = document.createElement('textarea');
+    temp.value = url;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+    try{ document.execCommand('copy'); showToast('Link copied'); }
+    catch(e){ showToast("Couldn't copy — copy it manually."); }
+    document.body.removeChild(temp);
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied')).catch(fallbackCopy);
+  } else {
+    fallbackCopy();
+  }
 }
 
 function showInvalidPlan(){
