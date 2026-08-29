@@ -87,6 +87,17 @@ const SUPABASE_URL = 'https://jkgkyaxvsbcpzpefsnvz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_S0PYKqfSmlFOQ4t5W6vJFg_WzJWUr7m';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+// Free STUN (Google) + free TURN relay (Open Relay Project by Metered — no signup, no cost).
+// STUN alone fails whenever both peers sit behind strict/symmetric NATs (common across
+// different countries/ISPs), so TURN is required for calls to reliably connect at distance.
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:openrelay.metered.ca:80' },
+  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+];
+
 const params = new URLSearchParams(window.location.search);
 const circleSlug = params.get('circle');
 const myPeerId = 'p-' + Math.random().toString(36).slice(2,10);
@@ -177,7 +188,7 @@ async function enterRoom(){
 }
 
 function createPeerConnection(peerId, name, isInitiator){
-  const pc = new RTCPeerConnection({ iceServers:[{ urls:'stun:stun.l.google.com:19302' }] });
+  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
   peers[peerId] = pc;
 
   localStream.getTracks().forEach(track => pc.addTrack(track, localStream));

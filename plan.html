@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Circle — Plan a meeting</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/png" href="circle.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --terracotta:#E2725B; --cream:#F5E6CA; --sage:#8BA888; --warmwhite:#FFF8F1; --espresso:#3E2723;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{background:var(--warmwhite); color:var(--espresso); font-family:'Raleway',sans-serif; font-weight:400;}
+  h1,h2,h3{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:-0.01em;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 32px;}
+
+  nav{display:flex; justify-content:space-between; align-items:center; padding:36px 0;}
+  .logo{font-family:'Playfair Display',serif; font-size:22px; font-weight:600;}
+  .logo span{color:var(--terracotta);}
+  .nav-links a{font-size:14px; margin-left:36px; opacity:0.75; transition:opacity .2s;}
+  .nav-links a:hover{opacity:1;}
+
+  .page-head{padding:40px 0 20px;}
+  .eyebrow{font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:16px;}
+  .page-head h1{font-size:38px; max-width:640px; margin-bottom:12px;}
+  .page-head p{font-size:15px; opacity:0.62; max-width:480px; line-height:1.6; font-weight:300;}
+
+  section.section{padding:36px 0 90px;}
+
+  .btn{display:inline-block; padding:14px 30px; border-radius:100px; font-size:14px; font-weight:600; cursor:pointer; transition:transform .15s ease, opacity .15s ease; border:none; text-align:center;}
+  .btn:hover{transform:translateY(-1px);}
+  .btn-primary{background:var(--espresso); color:var(--warmwhite);}
+  .btn-primary:hover{opacity:0.88;}
+  .btn-ghost{background:transparent; color:var(--espresso); border:1px solid rgba(62,39,35,0.2);}
+  .btn-ghost:hover{border-color:rgba(62,39,35,0.5);}
+
+  .card{background:var(--cream); border-radius:24px; padding:40px; margin-bottom:28px;}
+  .card h3{font-size:20px; margin-bottom:6px;}
+  .card .hint{font-size:13.5px; opacity:0.6; margin-bottom:22px; line-height:1.6;}
+
+  label{display:block; font-size:12.5px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; opacity:0.6; margin-bottom:8px;}
+  .field{margin-bottom:22px;}
+  input[type=text], input[type=date], input[type=time]{
+    width:100%; padding:13px 16px; border-radius:14px; border:1px solid rgba(62,39,35,0.15);
+    background:var(--warmwhite); font-family:'Raleway'; font-size:14px; color:var(--espresso);
+  }
+  input:focus{outline:none; border-color:var(--terracotta);}
+  select{
+    padding:13px 16px; border-radius:14px; border:1px solid rgba(62,39,35,0.15);
+    background:var(--warmwhite); font-family:'Raleway'; font-size:14px; color:var(--espresso);
+  }
+
+  .row{display:flex; gap:14px; flex-wrap:wrap;}
+  .row > div{flex:1; min-width:160px;}
+
+  .day-add{display:flex; gap:10px; align-items:center; margin-bottom:14px;}
+  .day-add input{flex:1;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{display:inline-flex; align-items:center; gap:8px; background:var(--warmwhite); border:1px solid rgba(62,39,35,0.15); padding:7px 8px 7px 14px; border-radius:100px; font-size:13px;}
+  .chip button{background:none; border:none; color:var(--terracotta); font-size:15px; cursor:pointer; line-height:1; padding:2px 4px;}
+
+  .msg{font-size:13.5px; margin-top:16px; min-height:18px;}
+  .msg.error{color:var(--terracotta); font-weight:600;}
+  .msg.success{color:var(--sage); font-weight:600;}
+
+  .grid-scroll{overflow-x:auto; border-radius:14px; border:1px solid rgba(62,39,35,0.1); background:var(--warmwhite);}
+  table.avail-grid{border-collapse:collapse; width:100%;}
+  table.avail-grid th{font-size:11.5px; font-weight:600; padding:10px 8px; text-align:center; white-space:nowrap; border-bottom:1px solid rgba(62,39,35,0.1); background:var(--warmwhite);}
+  table.avail-grid td.time-label{font-size:11.5px; opacity:0.55; padding:0 12px; white-space:nowrap; text-align:right; position:sticky; left:0; background:var(--warmwhite); border-right:1px solid rgba(62,39,35,0.1);}
+  table.avail-grid td.cell{
+    width:60px; height:26px; border:1px solid rgba(62,39,35,0.06); text-align:center; font-size:11px;
+    color:var(--warmwhite); cursor:pointer; -webkit-user-select:none; user-select:none; touch-action:none;
+  }
+  table.avail-grid td.cell:hover{background:rgba(226,114,91,0.12);}
+  table.avail-grid td.cell.selected{background:var(--terracotta); cursor:pointer;}
+  #resultsGrid td.cell{cursor:default;}
+  #resultsGrid td.cell:hover{background:inherit;}
+
+  .top-slots{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+  .top-slot{display:flex; justify-content:space-between; gap:16px; padding:12px 16px; background:var(--warmwhite); border-radius:12px; font-size:13.5px; flex-wrap:wrap;}
+  .top-slot strong{font-family:'Playfair Display',serif; font-weight:600; font-size:14.5px;}
+  .top-slot span{opacity:0.65;}
+  .empty{font-size:13.5px; opacity:0.55; padding:6px 0;}
+
+  .results-header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; flex-wrap:wrap; gap:8px;}
+  #responseCount{font-size:12.5px; opacity:0.55;}
+
+  footer{padding:60px 0; text-align:center; opacity:0.5; font-size:13px;}
+
+  @media(max-width:680px){
+    .page-head h1{font-size:28px;}
+    .card{padding:26px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <a href="index.html" class="logo">circle<span>.</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#create">Start a Circle</a>
+    </div>
+  </nav>
+</div>
+
+<!-- ===================== CREATE VIEW ===================== -->
+<div id="createView">
+  <div class="wrap page-head">
+    <div class="eyebrow">Plan a meeting</div>
+    <h1>Find a time that actually works.</h1>
+    <p>Set the days and hours that could work, share one link, and everyone marks the times they're free. No accounts, no back-and-forth.</p>
+  </div>
+  <section class="section">
+    <div class="wrap">
+      <div class="card">
+        <h3>Set it up</h3>
+        <p class="hint">This creates a link you can share with everyone you want to include.</p>
+
+        <div class="field">
+          <label>Meeting title</label>
+          <input type="text" id="planTitle" placeholder="e.g. Q3 planning sync" maxlength="80">
+        </div>
+
+        <div class="field">
+          <label>Allowed days</label>
+          <div class="day-add">
+            <input type="date" id="dayInput">
+            <button class="btn btn-ghost" onclick="addDay()" type="button">Add day</button>
+          </div>
+          <div class="chips" id="dayChips"></div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Earliest time</label>
+            <input type="time" id="timeStart" value="09:00">
+          </div>
+          <div class="field">
+            <label>Latest time</label>
+            <input type="time" id="timeEnd" value="17:00">
+          </div>
+          <div class="field">
+            <label>Slot length</label>
+            <select id="slotLength">
+              <option value="15">15 minutes</option>
+              <option value="30" selected>30 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="createPlan()" type="button">Create the link</button>
+        <div class="msg" id="createMsg"></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- ===================== RESPOND / RESULTS VIEW ===================== -->
+<div id="respondView" style="display:none;">
+  <div class="wrap page-head">
+    <div class="eyebrow">Plan a meeting</div>
+    <h1 id="planTitleDisplay">Loading…</h1>
+    <p>Mark every time that could work for you — click a slot, or click and drag across several.</p>
+  </div>
+  <section class="section" id="respondBody">
+    <div class="wrap">
+
+      <div class="card">
+        <div class="results-header">
+          <h3>Everyone's preferences</h3>
+          <span id="responseCount"></span>
+        </div>
+        <p class="hint">Darker slots have more people free. Hover a slot to see who.</p>
+        <div id="resultsGrid"></div>
+        <div class="top-slots" id="topSlots"></div>
+      </div>
+
+      <div class="card">
+        <h3>Add your availability</h3>
+        <p class="hint">Enter your name, then select every slot that works for you.</p>
+        <div class="field" style="max-width:320px;">
+          <label>Your name</label>
+          <input type="text" id="respName" placeholder="Your name" maxlength="40">
+        </div>
+        <div id="selectGrid"></div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-primary" onclick="submitAvailability()" type="button">Submit my availability</button>
+        </div>
+        <div class="msg" id="respondMsg"></div>
+      </div>
+
+    </div>
+  </section>
+</div>
+
+<footer>circle by <a href="https://setu.palrishabh.com" target="_blank" style="border-bottom:1px solid currentColor;">setu™</a><br><span style="opacity:0.6; font-size:11px;">© setu™ 2026</span></footer>
+
+<script>
+// Supabase config — publishable key only (safe for browser; RLS controls access). Same project as index.html/room.html.
+const SUPABASE_URL = 'https://jkgkyaxvsbcpzpefsnvz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_S0PYKqfSmlFOQ4t5W6vJFg_WzJWUr7m';
+
+const params = new URLSearchParams(window.location.search);
+const planSlug = params.get('p');
+
+if(planSlug){ initRespond(); } else { initCreate(); }
+
+/* ---------------------------------------------------------------- */
+/* CREATE                                                            */
+/* ---------------------------------------------------------------- */
+let chosenDays = []; // array of 'YYYY-MM-DD'
+
+function initCreate(){
+  document.getElementById('createView').style.display = 'block';
+  document.getElementById('respondView').style.display = 'none';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('dayInput').min = today;
+  document.getElementById('dayInput').value = today;
+}
+
+function addDay(){
+  const inp = document.getElementById('dayInput');
+  const v = inp.value;
+  if(!v) return;
+  if(!chosenDays.includes(v)){
+    chosenDays.push(v);
+    chosenDays.sort();
+    renderDayChips();
+  }
+}
+
+function removeDay(d){
+  chosenDays = chosenDays.filter(x => x !== d);
+  renderDayChips();
+}
+
+function renderDayChips(){
+  const el = document.getElementById('dayChips');
+  el.innerHTML = chosenDays.map(d => {
+    const label = new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+    return '<span class="chip">' + label + '<button type="button" onclick="removeDay(\'' + d + '\')">&times;</button></span>';
+  }).join('');
+}
+
+async function createPlan(){
+  const title = document.getElementById('planTitle').value.trim();
+  const start = document.getElementById('timeStart').value;
+  const end = document.getElementById('timeEnd').value;
+  const slotMin = parseInt(document.getElementById('slotLength').value, 10);
+  const msg = document.getElementById('createMsg');
+
+  if(!title){ msg.textContent = 'Give your meeting a title.'; msg.className = 'msg error'; return; }
+  if(chosenDays.length === 0){ msg.textContent = 'Add at least one day.'; msg.className = 'msg error'; return; }
+  if(!start || !end || start >= end){ msg.textContent = 'Set a valid time range (start before end).'; msg.className = 'msg error'; return; }
+
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,40) + '-' + Math.random().toString(36).slice(2,6);
+  msg.textContent = 'Creating…'; msg.className = 'msg';
+
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plans', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ slug, title, days: chosenDays, time_start: start, time_end: end, slot_minutes: slotMin })
+    });
+    if(!res.ok) throw new Error('request failed');
+    window.location.href = 'plan.html?p=' + slug;
+  }catch(err){
+    msg.textContent = "Couldn't create the plan — check your Supabase setup.";
+    msg.className = 'msg error';
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* RESPOND / RESULTS                                                  */
+/* ---------------------------------------------------------------- */
+let plan = null;
+let days = [];
+let times = [];
+let selected = new Set();
+let dragMode = true;
+let dragging = false;
+let responses = [];
+
+async function initRespond(){
+  document.getElementById('createView').style.display = 'none';
+  document.getElementById('respondView').style.display = 'block';
+
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plans?slug=eq.' + encodeURIComponent(planSlug) + '&select=*', {
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    const rows = await res.json();
+    if(!res.ok || !rows.length){ showInvalidPlan(); return; }
+    plan = rows[0];
+  }catch(err){ showInvalidPlan(); return; }
+
+  document.getElementById('planTitleDisplay').textContent = plan.title;
+  days = plan.days;
+  times = generateTimes(plan.time_start, plan.time_end, plan.slot_minutes);
+
+  renderGrid('selectGrid', true);
+  await loadResults();
+}
+
+function showInvalidPlan(){
+  document.getElementById('planTitleDisplay').textContent = 'This plan link isn\'t valid';
+  document.querySelector('#respondView .page-head p').textContent = 'Ask for a fresh link, or create a new meeting plan.';
+  document.getElementById('respondBody').style.display = 'none';
+}
+
+function generateTimes(start, end, stepMin){
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  let cur = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  const out = [];
+  while(cur < endMin){
+    const h = Math.floor(cur / 60), m = cur % 60;
+    out.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+    cur += stepMin;
+  }
+  return out;
+}
+
+function fmtDay(d){
+  return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+}
+
+function fmtTime(t){
+  const [h, m] = t.split(':').map(Number);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const hh = ((h + 11) % 12) + 1;
+  return hh + (m ? ':' + String(m).padStart(2,'0') : '') + ap;
+}
+
+function renderGrid(containerId, interactive){
+  const container = document.getElementById(containerId);
+  let html = '<div class="grid-scroll"><table class="avail-grid" id="' + containerId + 'Table"><thead><tr><th></th>';
+  days.forEach(d => html += '<th>' + fmtDay(d) + '</th>');
+  html += '</tr></thead><tbody>';
+  times.forEach(t => {
+    html += '<tr><td class="time-label">' + fmtTime(t) + '</td>';
+    days.forEach(d => {
+      const key = d + '|' + t;
+      html += '<td class="cell" data-key="' + key + '"></td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+
+  if(interactive) attachDrag(container);
+}
+
+function attachDrag(container){
+  container.querySelectorAll('.cell').forEach(cell => {
+    cell.addEventListener('pointerdown', e => {
+      dragging = true;
+      dragMode = !selected.has(cell.dataset.key);
+      toggleCell(cell, dragMode);
+      e.preventDefault();
+    });
+    cell.addEventListener('pointerenter', () => {
+      if(dragging) toggleCell(cell, dragMode);
+    });
+  });
+  window.addEventListener('pointerup', () => { dragging = false; });
+}
+
+function toggleCell(cell, on){
+  const key = cell.dataset.key;
+  if(on){ selected.add(key); cell.classList.add('selected'); }
+  else{ selected.delete(key); cell.classList.remove('selected'); }
+}
+
+async function submitAvailability(){
+  const name = document.getElementById('respName').value.trim();
+  const msg = document.getElementById('respondMsg');
+  if(!name){ msg.textContent = 'Enter your name.'; msg.className = 'msg error'; return; }
+  if(selected.size === 0){ msg.textContent = 'Select at least one timeslot.'; msg.className = 'msg error'; return; }
+
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  try{
+    // Replace any earlier response from the same name so resubmitting updates it instead of duplicating.
+    await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses?plan_id=eq.' + plan.id + '&name=ilike.' + encodeURIComponent(name), {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ plan_id: plan.id, name, slots: Array.from(selected) })
+    });
+    if(!res.ok) throw new Error('request failed');
+    msg.textContent = 'Saved — thank you!'; msg.className = 'msg success';
+    await loadResults();
+  }catch(err){
+    msg.textContent = "Couldn't save — check your Supabase setup.";
+    msg.className = 'msg error';
+  }
+}
+
+async function loadResults(){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses?plan_id=eq.' + plan.id + '&select=name,slots', {
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    responses = await res.json();
+    if(!res.ok) responses = [];
+  }catch(err){ responses = []; }
+  renderResults();
+}
+
+function renderResults(){
+  const counts = {};
+  responses.forEach(r => (r.slots || []).forEach(k => { counts[k] = (counts[k] || 0) + 1; }));
+  const max = Math.max(1, ...Object.values(counts));
+
+  renderGrid('resultsGrid', false);
+  document.querySelectorAll('#resultsGrid .cell').forEach(cell => {
+    const key = cell.dataset.key;
+    const c = counts[key] || 0;
+    if(c > 0){
+      const alpha = 0.18 + 0.7 * (c / max);
+      cell.style.background = 'rgba(139,168,136,' + alpha.toFixed(2) + ')';
+      const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name).join(', ');
+      cell.title = c + (c === 1 ? ' person free: ' : ' people free: ') + names;
+      cell.textContent = c;
+    }
+  });
+
+  document.getElementById('responseCount').textContent = responses.length + (responses.length === 1 ? ' response' : ' responses');
+
+  const sorted = Object.entries(counts).filter(([,c]) => c > 0).sort((a,b) => b[1] - a[1]).slice(0,5);
+  const topEl = document.getElementById('topSlots');
+  if(sorted.length === 0){
+    topEl.innerHTML = '<p class="empty">No responses yet — be the first to add your availability below.</p>';
+  } else {
+    topEl.innerHTML = sorted.map(([key, c]) => {
+      const [d, t] = key.split('|');
+      const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name).join(', ');
+      return '<div class="top-slot"><strong>' + fmtDay(d) + ', ' + fmtTime(t) + '</strong><span>' + c + (c === 1 ? ' available — ' : ' available — ') + names + '</span></div>';
+    }).join('');
+  }
+}
+</script>
+</body>
+</html>
