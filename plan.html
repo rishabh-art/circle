@@ -88,6 +88,17 @@
   .results-header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; flex-wrap:wrap; gap:8px;}
   #responseCount{font-size:12.5px; opacity:0.55;}
 
+  .split{display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;}
+  .split-grid{flex:1 1 320px; min-width:280px;}
+  .split-info{flex:0 0 210px; min-width:200px; background:var(--warmwhite); border-radius:14px; padding:18px 20px; align-self:stretch;}
+  .info-label{font-size:11.5px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; opacity:0.55; margin-bottom:12px;}
+  .range-day{margin-bottom:14px;}
+  .range-day:last-child{margin-bottom:0;}
+  .range-day .day-name{font-family:'Playfair Display',serif; font-weight:600; font-size:13.5px; margin-bottom:4px;}
+  .range-line{opacity:0.72; font-size:12.5px; line-height:1.7;}
+  .hover-empty{font-size:13px; opacity:0.55; line-height:1.6;}
+  .hover-names{font-size:13px; opacity:0.8; line-height:1.7;}
+
   footer{padding:60px 0; text-align:center; opacity:0.5; font-size:13px;}
 
   @media(max-width:680px){
@@ -172,27 +183,39 @@
     <div class="wrap">
 
       <div class="card">
-        <div class="results-header">
-          <h3>Everyone's preferences</h3>
-          <span id="responseCount"></span>
-        </div>
-        <p class="hint">Darker slots have more people free. Hover a slot to see who.</p>
-        <div id="resultsGrid"></div>
-        <div class="top-slots" id="topSlots"></div>
-      </div>
-
-      <div class="card">
         <h3>Add your availability</h3>
-        <p class="hint">Enter your name, then select every slot that works for you.</p>
+        <p class="hint">Enter your name, then click or drag across the grid to mark every slot that works for you.</p>
         <div class="field" style="max-width:320px;">
           <label>Your name</label>
           <input type="text" id="respName" placeholder="Your name" maxlength="40">
         </div>
-        <div id="selectGrid"></div>
+        <div class="split">
+          <div class="split-grid" id="selectGrid"></div>
+          <div class="split-info">
+            <div class="info-label">Your selected times</div>
+            <div id="selectedSummary"></div>
+          </div>
+        </div>
         <div style="margin-top:20px;">
           <button class="btn btn-primary" onclick="submitAvailability()" type="button">Submit my availability</button>
         </div>
         <div class="msg" id="respondMsg"></div>
+      </div>
+
+      <div class="card">
+        <div class="results-header">
+          <h3>Everyone's preferences</h3>
+          <span id="responseCount"></span>
+        </div>
+        <p class="hint">Darker slots have more people free. Hover or tap a slot to see who.</p>
+        <div class="split">
+          <div class="split-info">
+            <div class="info-label">Who's free</div>
+            <div id="hoverInfo"><p class="hover-empty">Hover or tap a slot to see who's free then.</p></div>
+          </div>
+          <div class="split-grid" id="resultsGrid"></div>
+        </div>
+        <div class="top-slots" id="topSlots"></div>
       </div>
 
     </div>
@@ -309,6 +332,7 @@ async function initRespond(){
   times = generateTimes(plan.time_start, plan.time_end, plan.slot_minutes);
 
   renderGrid('selectGrid', true);
+  updateSelectedSummary();
   await loadResults();
 }
 
@@ -381,6 +405,64 @@ function toggleCell(cell, on){
   const key = cell.dataset.key;
   if(on){ selected.add(key); cell.classList.add('selected'); }
   else{ selected.delete(key); cell.classList.remove('selected'); }
+  updateSelectedSummary();
+}
+
+function minutesOf(t){
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function addMinutes(t, add){
+  const total = minutesOf(t) + add;
+  const h = Math.floor(total / 60) % 24, m = total % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+// Merges consecutive selected slots on the same day into ranges, e.g. 8AM+8:30AM -> "8:00AM – 9:00AM".
+function computeRangesForDay(dayTimes, slotMinutes){
+  if(!dayTimes.length) return [];
+  const ranges = [];
+  let start = dayTimes[0], prev = dayTimes[0];
+  for(let i = 1; i < dayTimes.length; i++){
+    const t = dayTimes[i];
+    if(minutesOf(t) - minutesOf(prev) === slotMinutes){
+      prev = t;
+    } else {
+      ranges.push([start, addMinutes(prev, slotMinutes)]);
+      start = t; prev = t;
+    }
+  }
+  ranges.push([start, addMinutes(prev, slotMinutes)]);
+  return ranges;
+}
+
+function updateSelectedSummary(){
+  const el = document.getElementById('selectedSummary');
+  if(!el) return;
+  if(selected.size === 0){
+    el.innerHTML = '<p class="hover-empty">Nothing selected yet — click or drag across the grid.</p>';
+    return;
+  }
+  const byDay = {};
+  days.forEach(d => byDay[d] = []);
+  times.forEach(t => {
+    days.forEach(d => {
+      if(selected.has(d + '|' + t)) byDay[d].push(t);
+    });
+  });
+  let html = '';
+  days.forEach(d => {
+    const dts = byDay[d];
+    if(!dts.length) return;
+    const ranges = computeRangesForDay(dts, plan.slot_minutes);
+    html += '<div class="range-day"><div class="day-name">' + fmtDay(d) + '</div>';
+    ranges.forEach(r => {
+      html += '<div class="range-line">' + fmtTime(r[0]) + ' – ' + fmtTime(r[1]) + '</div>';
+    });
+    html += '</div>';
+  });
+  el.innerHTML = html || '<p class="hover-empty">Nothing selected yet.</p>';
 }
 
 async function submitAvailability(){
@@ -425,6 +507,19 @@ async function loadResults(){
   renderResults();
 }
 
+function showHoverInfo(key, names){
+  const el = document.getElementById('hoverInfo');
+  if(!el) return;
+  const [d, t] = key.split('|');
+  if(names.length === 0){
+    el.innerHTML = '<div class="range-day"><div class="day-name">' + fmtDay(d) + ', ' + fmtTime(t) + '</div>'
+      + '<p class="hover-empty">No one\'s free then — yet.</p></div>';
+  } else {
+    el.innerHTML = '<div class="range-day"><div class="day-name">' + fmtDay(d) + ', ' + fmtTime(t) + '</div>'
+      + '<p class="hover-names">' + names.join(', ') + '</p></div>';
+  }
+}
+
 function renderResults(){
   const counts = {};
   responses.forEach(r => (r.slots || []).forEach(k => { counts[k] = (counts[k] || 0) + 1; }));
@@ -434,13 +529,14 @@ function renderResults(){
   document.querySelectorAll('#resultsGrid .cell').forEach(cell => {
     const key = cell.dataset.key;
     const c = counts[key] || 0;
+    const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name);
     if(c > 0){
       const alpha = 0.18 + 0.7 * (c / max);
       cell.style.background = 'rgba(139,168,136,' + alpha.toFixed(2) + ')';
-      const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name).join(', ');
-      cell.title = c + (c === 1 ? ' person free: ' : ' people free: ') + names;
       cell.textContent = c;
     }
+    cell.addEventListener('mouseenter', () => showHoverInfo(key, names));
+    cell.addEventListener('click', () => showHoverInfo(key, names));
   });
 
   document.getElementById('responseCount').textContent = responses.length + (responses.length === 1 ? ' response' : ' responses');
