@@ -37,6 +37,7 @@
   .tile{position:relative; background:#2a1a17; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center;}
   .tile video{width:100%; height:100%; object-fit:contain; background:#1c1210;}
   .tile video.hidden{display:none;}
+  .tile video.mirrored{transform:scaleX(-1);}
   .avatar{width:64px; height:64px; border-radius:50%; background:var(--terracotta); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-size:24px; color:var(--warmwhite);}
   .tile-label{position:absolute; bottom:10px; left:12px; font-size:12px; background:rgba(62,39,35,0.6); backdrop-filter:blur(4px); padding:4px 12px; border-radius:100px; letter-spacing:0.02em; display:flex; align-items:center; gap:6px;}
   .live-dot{width:6px; height:6px; border-radius:50%; background:var(--sage);}
@@ -247,7 +248,7 @@ function addTile(peerId, name, stream){
     tile = document.createElement('div');
     tile.className = 'tile';
     tile.id = 'tile-' + peerId;
-    tile.innerHTML = '<video autoplay playsinline' + (peerId===myPeerId ? ' muted' : '') + '></video>'
+    tile.innerHTML = '<video autoplay playsinline' + (peerId===myPeerId ? ' muted class="mirrored"' : '') + '></video>'
       + '<div class="avatar" style="display:none;">'+initials(name)+'</div>'
       + '<div class="tile-label"><span class="live-dot"></span>'+name+'</div>';
     document.getElementById('grid').appendChild(tile);
