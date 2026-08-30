@@ -2,326 +2,628 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Circle — Room</title>
+<title>Circle — Plan a meeting</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="icon" type="image/png" href="circle.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=Raleway:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --terracotta:#E2725B; --cream:#F5E6CA; --sage:#8BA888; --warmwhite:#FFF8F1; --espresso:#3E2723;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{height:100%; background:var(--espresso); color:var(--warmwhite); font-family:'Raleway',sans-serif; overflow:hidden;}
-  h1,h2,h3{font-family:'Playfair Display',serif; font-weight:600;}
+  body{background:var(--warmwhite); color:var(--espresso); font-family:'Raleway',sans-serif; font-weight:400;}
+  h1,h2,h3{font-family:'Playfair Display',serif; font-weight:600; letter-spacing:-0.01em;}
+  a{color:inherit; text-decoration:none;}
+  .wrap{max-width:1040px; margin:0 auto; padding:0 32px;}
 
-  #entry{position:fixed; inset:0; background:var(--warmwhite); color:var(--espresso); display:flex; align-items:center; justify-content:center; z-index:20;}
-  .entry-card{text-align:center; max-width:360px; padding:0 24px;}
-  .entry-eyebrow{font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:18px;}
-  .entry-card h1{font-size:32px; margin-bottom:10px;}
-  .entry-card p{font-size:14.5px; opacity:0.6; margin-bottom:32px; line-height:1.6;}
-  input[type=text]{width:100%; padding:14px 18px; border-radius:100px; border:1px solid rgba(62,39,35,0.15); background:var(--cream); font-family:'Raleway'; font-size:14px; color:var(--espresso); margin-bottom:16px;}
-  input[type=text]:focus{outline:none; border-color:var(--terracotta);}
-  .btn{display:inline-block; padding:14px 30px; border-radius:100px; font-size:14px; font-weight:600; cursor:pointer; border:none; width:100%;}
+  nav{display:flex; justify-content:space-between; align-items:center; padding:36px 0;}
+  .logo{font-family:'Playfair Display',serif; font-size:22px; font-weight:600;}
+  .logo span{color:var(--terracotta);}
+  .nav-links a{font-size:14px; margin-left:36px; opacity:0.75; transition:opacity .2s;}
+  .nav-links a:hover{opacity:1;}
+
+  .page-head{padding:40px 0 20px;}
+  .eyebrow{font-size:11px; letter-spacing:0.22em; text-transform:uppercase; color:var(--terracotta); font-weight:600; margin-bottom:16px;}
+  .page-head h1{font-size:38px; max-width:640px; margin-bottom:12px;}
+  .page-head p{font-size:15px; opacity:0.62; max-width:480px; line-height:1.6; font-weight:300;}
+
+  section.section{padding:36px 0 90px;}
+
+  .btn{display:inline-block; padding:14px 30px; border-radius:100px; font-size:14px; font-weight:600; cursor:pointer; transition:transform .15s ease, opacity .15s ease; border:none; text-align:center;}
+  .btn:hover{transform:translateY(-1px);}
   .btn-primary{background:var(--espresso); color:var(--warmwhite);}
   .btn-primary:hover{opacity:0.88;}
+  .btn-ghost{background:transparent; color:var(--espresso); border:1px solid rgba(62,39,35,0.2);}
+  .btn-ghost:hover{border-color:rgba(62,39,35,0.5);}
 
-  #room{height:100%; display:flex; flex-direction:column;}
-  header{padding:18px 28px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid rgba(255,248,241,0.08);}
-  .room-name{font-family:'Playfair Display',serif; font-size:17px;}
-  .room-name span{color:var(--terracotta);}
-  .count{font-size:12px; opacity:0.5; letter-spacing:0.05em;}
+  .card{background:var(--cream); border-radius:24px; padding:40px; margin-bottom:28px;}
+  .card h3{font-size:20px; margin-bottom:6px;}
+  .card .hint{font-size:13.5px; opacity:0.6; margin-bottom:22px; line-height:1.6;}
 
-  #grid{flex:1; gap:14px; padding:20px 28px; overflow:hidden;}
-  .tile{position:relative; background:#2a1a17; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center;}
-  .tile video{width:100%; height:100%; object-fit:contain; background:#1c1210;}
-  .tile.local video{transform:scaleX(-1);}
-  .tile video.hidden{display:none;}
-  .avatar{width:64px; height:64px; border-radius:50%; background:var(--terracotta); display:flex; align-items:center; justify-content:center; font-family:'Playfair Display',serif; font-size:24px; color:var(--warmwhite);}
-  .tile-label{position:absolute; bottom:10px; left:12px; font-size:12px; background:rgba(62,39,35,0.6); backdrop-filter:blur(4px); padding:4px 12px; border-radius:100px; letter-spacing:0.02em; display:flex; align-items:center; gap:6px;}
-  .live-dot{width:6px; height:6px; border-radius:50%; background:var(--sage);}
+  label{display:block; font-size:12.5px; font-weight:600; letter-spacing:0.03em; text-transform:uppercase; opacity:0.6; margin-bottom:8px;}
+  .field{margin-bottom:22px;}
+  input[type=text], input[type=date], input[type=time]{
+    width:100%; padding:13px 16px; border-radius:14px; border:1px solid rgba(62,39,35,0.15);
+    background:var(--warmwhite); font-family:'Raleway'; font-size:14px; color:var(--espresso);
+  }
+  input:focus{outline:none; border-color:var(--terracotta);}
+  select{
+    padding:13px 16px; border-radius:14px; border:1px solid rgba(62,39,35,0.15);
+    background:var(--warmwhite); font-family:'Raleway'; font-size:14px; color:var(--espresso);
+  }
 
-  .controls{display:flex; justify-content:center; gap:14px; padding:24px; border-top:1px solid rgba(255,248,241,0.08);}
-  .ctrl{width:52px; height:52px; border-radius:50%; border:1px solid rgba(255,248,241,0.15); background:rgba(255,248,241,0.05); color:var(--warmwhite); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s;}
-  .ctrl:hover{background:rgba(255,248,241,0.12);}
-  .ctrl.off{background:var(--terracotta); border-color:var(--terracotta);}
-  .ctrl.leave{background:var(--terracotta); border-color:var(--terracotta);}
-  .ctrl svg{width:20px; height:20px;}
+  .row{display:flex; gap:14px; flex-wrap:wrap;}
+  .row > div{flex:1; min-width:160px;}
 
-  @media(max-width:680px){ header{padding:14px 18px;} #grid{padding:12px;} }
+  .day-add{display:flex; gap:10px; align-items:center; margin-bottom:14px;}
+  .day-add input{flex:1;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{display:inline-flex; align-items:center; gap:8px; background:var(--warmwhite); border:1px solid rgba(62,39,35,0.15); padding:7px 8px 7px 14px; border-radius:100px; font-size:13px;}
+  .chip button{background:none; border:none; color:var(--terracotta); font-size:15px; cursor:pointer; line-height:1; padding:2px 4px;}
+
+  .msg{font-size:13.5px; margin-top:16px; min-height:18px;}
+  .msg.error{color:var(--terracotta); font-weight:600;}
+  .msg.success{color:var(--sage); font-weight:600;}
+
+  .grid-scroll{overflow-x:auto; border-radius:14px; border:1px solid rgba(62,39,35,0.1); background:var(--warmwhite);}
+  table.avail-grid{border-collapse:collapse; width:100%;}
+  table.avail-grid th{font-size:11.5px; font-weight:600; padding:10px 8px; text-align:center; white-space:nowrap; border-bottom:1px solid rgba(62,39,35,0.1); background:var(--warmwhite);}
+  table.avail-grid td.time-label{font-size:11.5px; opacity:0.55; padding:0 12px; white-space:nowrap; text-align:right; position:sticky; left:0; background:var(--warmwhite); border-right:1px solid rgba(62,39,35,0.1);}
+  table.avail-grid td.cell{
+    width:60px; height:26px; border:1px solid rgba(62,39,35,0.06); text-align:center; font-size:11px;
+    color:var(--warmwhite); cursor:pointer; -webkit-user-select:none; user-select:none; touch-action:none;
+  }
+  table.avail-grid td.cell:hover{background:rgba(226,114,91,0.12);}
+  table.avail-grid td.cell.selected{background:var(--terracotta); cursor:pointer;}
+  #resultsGrid td.cell{cursor:default;}
+  #resultsGrid td.cell:hover{background:inherit;}
+
+  .top-slots{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+  .top-slot{display:flex; justify-content:space-between; gap:16px; padding:12px 16px; background:var(--warmwhite); border-radius:12px; font-size:13.5px; flex-wrap:wrap;}
+  .top-slot strong{font-family:'Playfair Display',serif; font-weight:600; font-size:14.5px;}
+  .top-slot span{opacity:0.65;}
+  .empty{font-size:13.5px; opacity:0.55; padding:6px 0;}
+
+  .results-header{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; flex-wrap:wrap; gap:8px;}
+  #responseCount{font-size:12.5px; opacity:0.55;}
+
+  .split{display:flex; gap:22px; align-items:flex-start; flex-wrap:wrap;}
+  .split-grid{flex:1 1 320px; min-width:280px;}
+  .split-info{flex:0 0 210px; min-width:200px; background:var(--warmwhite); border-radius:14px; padding:18px 20px; align-self:stretch;}
+  .info-label{font-size:11.5px; font-weight:600; letter-spacing:0.05em; text-transform:uppercase; opacity:0.55; margin-bottom:12px;}
+  .range-day{margin-bottom:14px;}
+  .range-day:last-child{margin-bottom:0;}
+  .range-day .day-name{font-family:'Playfair Display',serif; font-weight:600; font-size:13.5px; margin-bottom:4px;}
+  .range-line{opacity:0.72; font-size:12.5px; line-height:1.7;}
+  .hover-empty{font-size:13px; opacity:0.55; line-height:1.6;}
+  .hover-names{font-size:13px; opacity:0.8; line-height:1.7;}
+
+  .link-row{display:flex; align-items:center; gap:10px; margin-top:18px; max-width:520px;}
+  .link-text{
+    flex:1; min-width:0; background:var(--cream); border:1px solid rgba(62,39,35,0.15); border-radius:100px;
+    padding:11px 18px; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    cursor:pointer; color:var(--espresso); opacity:0.85;
+  }
+  .link-text:hover{opacity:1; border-color:rgba(62,39,35,0.3);}
+  .copy-btn{
+    flex-shrink:0; width:42px; height:42px; border-radius:50%; border:1px solid rgba(62,39,35,0.15);
+    background:var(--espresso); color:var(--warmwhite); cursor:pointer; display:flex; align-items:center; justify-content:center;
+    transition:opacity .15s ease, transform .15s ease;
+  }
+  .copy-btn:hover{opacity:0.88; transform:translateY(-1px);}
+  .copy-btn svg{width:17px; height:17px;}
+
+  .toast{
+    position:fixed; left:50%; bottom:32px; transform:translate(-50%,16px); background:var(--espresso); color:var(--warmwhite);
+    font-size:13.5px; font-weight:500; padding:13px 24px; border-radius:100px; box-shadow:0 8px 24px rgba(62,39,35,0.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:50;
+  }
+  .toast.show{opacity:1; transform:translate(-50%,0);}
+
+  footer{padding:60px 0; text-align:center; opacity:0.5; font-size:13px;}
+
+  @media(max-width:680px){
+    .page-head h1{font-size:28px;}
+    .card{padding:26px;}
+  }
 </style>
 </head>
 <body>
 
-<div id="entry" style="visibility:hidden;">
-  <div class="entry-card">
-    <div class="entry-eyebrow">Entering a Circle</div>
-    <h1 id="circleTitle">Circle</h1>
-    <p>Enter with the name you'd like others to see.</p>
-    <input type="text" id="displayName" placeholder="Your name" maxlength="30">
-    <button class="btn btn-primary" onclick="enterRoom()">Join</button>
-  </div>
+<div class="wrap">
+  <nav>
+    <a href="index.html" class="logo">circle<span>.</span></a>
+    <div class="nav-links">
+      <a href="index.html#how">How it works</a>
+      <a href="index.html#create">Start a Circle</a>
+    </div>
+  </nav>
 </div>
 
-<div id="room" style="display:none;">
-  <header>
-    <div class="room-name">circle<span>.</span> — <span id="roomNameLabel"></span></div>
-    <div class="count" id="peerCount">1 here</div>
-  </header>
-  <div id="grid"></div>
-  <div class="controls">
-    <div class="ctrl" id="micBtn" onclick="toggleMic()" title="Mute/unmute">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5.5A3.5 3.5 0 0 0 12 15z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3"/></svg>
+<!-- ===================== CREATE VIEW ===================== -->
+<div id="createView">
+  <div class="wrap page-head">
+    <div class="eyebrow">Plan a meeting</div>
+    <h1>Find a time that actually works.</h1>
+    <p>Set the days and hours that could work, share one link, and everyone marks the times they're free. No accounts, no back-and-forth.</p>
+  </div>
+  <section class="section">
+    <div class="wrap">
+      <div class="card">
+        <h3>Set it up</h3>
+        <p class="hint">This creates a link you can share with everyone you want to include.</p>
+
+        <div class="field">
+          <label>Meeting title</label>
+          <input type="text" id="planTitle" placeholder="e.g. Q3 planning sync" maxlength="80">
+        </div>
+
+        <div class="field">
+          <label>Allowed days</label>
+          <div class="day-add">
+            <input type="date" id="dayInput">
+            <button class="btn btn-ghost" onclick="addDay()" type="button">Add day</button>
+          </div>
+          <div class="chips" id="dayChips"></div>
+        </div>
+
+        <div class="row">
+          <div class="field">
+            <label>Earliest time</label>
+            <input type="time" id="timeStart" value="09:00">
+          </div>
+          <div class="field">
+            <label>Latest time</label>
+            <input type="time" id="timeEnd" value="17:00">
+          </div>
+          <div class="field">
+            <label>Slot length</label>
+            <select id="slotLength">
+              <option value="15">15 minutes</option>
+              <option value="30" selected>30 minutes</option>
+              <option value="60">60 minutes</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="createPlan()" type="button">Create the link</button>
+        <div class="msg" id="createMsg"></div>
+      </div>
     </div>
-    <div class="ctrl" id="camBtn" onclick="toggleCam()" title="Camera on/off">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2.5"/><path d="M21 8.5v7L16 13v-2l5-2.5z"/></svg>
-    </div>
-    <div class="ctrl leave" onclick="leaveRoom()" title="Leave">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+  </section>
+</div>
+
+<!-- ===================== RESPOND / RESULTS VIEW ===================== -->
+<div id="respondView" style="display:none;">
+  <div class="wrap page-head">
+    <div class="eyebrow">Plan a meeting</div>
+    <h1 id="planTitleDisplay">Loading…</h1>
+    <p>Mark every time that could work for you — click a slot, or click and drag across several.</p>
+    <div class="link-row" id="linkRow" style="display:none;">
+      <span class="link-text" id="linkText" onclick="copyPlanLink()"></span>
+      <button class="copy-btn" id="copyBtn" onclick="copyPlanLink()" type="button" title="Copy link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
     </div>
   </div>
+  <section class="section" id="respondBody">
+    <div class="wrap">
+
+      <div class="card">
+        <h3>Add your availability</h3>
+        <p class="hint">Enter your name, then click or drag across the grid to mark every slot that works for you.</p>
+        <div class="field" style="max-width:320px;">
+          <label>Your name</label>
+          <input type="text" id="respName" placeholder="Your name" maxlength="40">
+        </div>
+        <div class="split">
+          <div class="split-grid" id="selectGrid"></div>
+          <div class="split-info">
+            <div class="info-label">Your selected times</div>
+            <div id="selectedSummary"></div>
+          </div>
+        </div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-primary" onclick="submitAvailability()" type="button">Submit my availability</button>
+        </div>
+        <div class="msg" id="respondMsg"></div>
+      </div>
+
+      <div class="card">
+        <div class="results-header">
+          <h3>Everyone's preferences</h3>
+          <span id="responseCount"></span>
+        </div>
+        <p class="hint">Darker slots have more people free. Hover or tap a slot to see who.</p>
+        <div class="split">
+          <div class="split-info">
+            <div class="info-label">Who's free</div>
+            <div id="hoverInfo"><p class="hover-empty">Hover or tap a slot to see who's free then.</p></div>
+          </div>
+          <div class="split-grid" id="resultsGrid"></div>
+        </div>
+        <div class="top-slots" id="topSlots"></div>
+      </div>
+
+    </div>
+  </section>
 </div>
+
+<footer>circle by <a href="https://setu.palrishabh.com" target="_blank" style="border-bottom:1px solid currentColor;">setu™</a><br><span style="opacity:0.6; font-size:11px;">© setu™ 2026</span></footer>
+
+<div class="toast" id="toast">Link copied</div>
 
 <script>
+// Supabase config — publishable key only (safe for browser; RLS controls access). Same project as index.html/room.html.
 const SUPABASE_URL = 'https://jkgkyaxvsbcpzpefsnvz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_S0PYKqfSmlFOQ4t5W6vJFg_WzJWUr7m';
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-// Free STUN (Google) + free TURN relay (Open Relay Project by Metered — no signup, no cost).
-// STUN alone fails whenever both peers sit behind strict/symmetric NATs (common across
-// different countries/ISPs), so TURN is required for calls to reliably connect at distance.
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:openrelay.metered.ca:80' },
-  { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
-];
 
 const params = new URLSearchParams(window.location.search);
-const circleSlug = params.get('circle');
-const myPeerId = 'p-' + Math.random().toString(36).slice(2,10);
+const planSlug = params.get('p');
 
-let localStream = null;
-let displayName = '';
-let channel = null;
-const peers = {}; // peerId -> RTCPeerConnection
-const knownPeers = new Set();
+if(planSlug){ initRespond(); } else { initCreate(); }
 
-if(!circleSlug){
-  showInvalid();
-} else {
-  checkCircleExists();
+/* ---------------------------------------------------------------- */
+/* CREATE                                                            */
+/* ---------------------------------------------------------------- */
+let chosenDays = []; // array of 'YYYY-MM-DD'
+
+function initCreate(){
+  document.getElementById('createView').style.display = 'block';
+  document.getElementById('respondView').style.display = 'none';
+  const today = new Date().toISOString().slice(0,10);
+  document.getElementById('dayInput').min = today;
+  document.getElementById('dayInput').value = today;
 }
 
-function showInvalid(){
-  document.getElementById('circleTitle').textContent = 'No Circle found';
-  document.querySelector('.entry-card p').textContent = 'This link isn\'t valid. Ask for a fresh one, or create a new Circle.';
-  document.getElementById('displayName').style.display = 'none';
-  document.querySelector('.entry-card .btn').style.display = 'none';
-  document.getElementById('entry').style.visibility = 'visible';
+function addDay(){
+  const inp = document.getElementById('dayInput');
+  const v = inp.value;
+  if(!v) return;
+  if(!chosenDays.includes(v)){
+    chosenDays.push(v);
+    chosenDays.sort();
+    renderDayChips();
+  }
 }
 
-async function checkCircleExists(){
+function removeDay(d){
+  chosenDays = chosenDays.filter(x => x !== d);
+  renderDayChips();
+}
+
+function renderDayChips(){
+  const el = document.getElementById('dayChips');
+  el.innerHTML = chosenDays.map(d => {
+    const label = new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+    return '<span class="chip">' + label + '<button type="button" onclick="removeDay(\'' + d + '\')">&times;</button></span>';
+  }).join('');
+}
+
+async function createPlan(){
+  const title = document.getElementById('planTitle').value.trim();
+  const start = document.getElementById('timeStart').value;
+  const end = document.getElementById('timeEnd').value;
+  const slotMin = parseInt(document.getElementById('slotLength').value, 10);
+  const msg = document.getElementById('createMsg');
+
+  if(!title){ msg.textContent = 'Give your meeting a title.'; msg.className = 'msg error'; return; }
+  if(chosenDays.length === 0){ msg.textContent = 'Add at least one day.'; msg.className = 'msg error'; return; }
+  if(!start || !end || start >= end){ msg.textContent = 'Set a valid time range (start before end).'; msg.className = 'msg error'; return; }
+
+  const slug = title.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'').slice(0,40) + '-' + Math.random().toString(36).slice(2,6);
+  msg.textContent = 'Creating…'; msg.className = 'msg';
+
   try{
-    const res = await fetch(SUPABASE_URL + '/rest/v1/circles?slug=eq.' + encodeURIComponent(circleSlug) + '&select=name', {
-      headers:{ 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plans', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ slug, title, days: chosenDays, time_start: start, time_end: end, slot_minutes: slotMin })
+    });
+    if(!res.ok) throw new Error('request failed');
+    window.location.href = 'plan.html?p=' + slug;
+  }catch(err){
+    msg.textContent = "Couldn't create the plan — check your Supabase setup.";
+    msg.className = 'msg error';
+  }
+}
+
+/* ---------------------------------------------------------------- */
+/* RESPOND / RESULTS                                                  */
+/* ---------------------------------------------------------------- */
+let plan = null;
+let days = [];
+let times = [];
+let selected = new Set();
+let dragMode = true;
+let dragging = false;
+let responses = [];
+
+async function initRespond(){
+  document.getElementById('createView').style.display = 'none';
+  document.getElementById('respondView').style.display = 'block';
+
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plans?slug=eq.' + encodeURIComponent(planSlug) + '&select=*', {
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
     });
     const rows = await res.json();
-    if(!res.ok || !rows.length){ showInvalid(); return; }
-    document.getElementById('circleTitle').textContent = rows[0].name || 'Circle';
-    document.getElementById('entry').style.visibility = 'visible';
-  }catch(err){
-    showInvalid();
+    if(!res.ok || !rows.length){ showInvalidPlan(); return; }
+    plan = rows[0];
+  }catch(err){ showInvalidPlan(); return; }
+
+  document.getElementById('planTitleDisplay').textContent = plan.title;
+  showPlanLink();
+  days = plan.days;
+  times = generateTimes(plan.time_start, plan.time_end, plan.slot_minutes);
+
+  renderGrid('selectGrid', true);
+  updateSelectedSummary();
+  await loadResults();
+}
+
+function showPlanLink(){
+  const url = window.location.origin + window.location.pathname + '?p=' + planSlug;
+  const linkEl = document.getElementById('linkText');
+  linkEl.textContent = url;
+  linkEl.dataset.full = url;
+  linkEl.title = url;
+  document.getElementById('linkRow').style.display = 'flex';
+}
+
+let toastTimer = null;
+function showToast(message){
+  const t = document.getElementById('toast');
+  t.textContent = message;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+function copyPlanLink(){
+  const url = document.getElementById('linkText').dataset.full;
+  if(!url) return;
+
+  const fallbackCopy = () => {
+    const temp = document.createElement('textarea');
+    temp.value = url;
+    temp.style.position = 'fixed';
+    temp.style.opacity = '0';
+    document.body.appendChild(temp);
+    temp.select();
+    try{ document.execCommand('copy'); showToast('Link copied'); }
+    catch(e){ showToast("Couldn't copy — copy it manually."); }
+    document.body.removeChild(temp);
+  };
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(() => showToast('Link copied')).catch(fallbackCopy);
+  } else {
+    fallbackCopy();
   }
 }
 
-async function enterRoom(){
-  displayName = document.getElementById('displayName').value.trim() || 'Guest';
-  if(!circleSlug) return;
+function showInvalidPlan(){
+  document.getElementById('planTitleDisplay').textContent = 'This plan link isn\'t valid';
+  document.querySelector('#respondView .page-head p').textContent = 'Ask for a fresh link, or create a new meeting plan.';
+  document.getElementById('respondBody').style.display = 'none';
+}
 
-  try{
-    localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  }catch(err){
-    alert('Camera/microphone access is needed to join.');
+function generateTimes(start, end, stepMin){
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  let cur = sh * 60 + sm;
+  const endMin = eh * 60 + em;
+  const out = [];
+  while(cur < endMin){
+    const h = Math.floor(cur / 60), m = cur % 60;
+    out.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+    cur += stepMin;
+  }
+  return out;
+}
+
+function fmtDay(d){
+  return new Date(d + 'T00:00:00').toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' });
+}
+
+function fmtTime(t){
+  const [h, m] = t.split(':').map(Number);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const hh = ((h + 11) % 12) + 1;
+  return hh + (m ? ':' + String(m).padStart(2,'0') : '') + ap;
+}
+
+function renderGrid(containerId, interactive){
+  const container = document.getElementById(containerId);
+  let html = '<div class="grid-scroll"><table class="avail-grid" id="' + containerId + 'Table"><thead><tr><th></th>';
+  days.forEach(d => html += '<th>' + fmtDay(d) + '</th>');
+  html += '</tr></thead><tbody>';
+  times.forEach(t => {
+    html += '<tr><td class="time-label">' + fmtTime(t) + '</td>';
+    days.forEach(d => {
+      const key = d + '|' + t;
+      html += '<td class="cell" data-key="' + key + '"></td>';
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+
+  if(interactive) attachDrag(container);
+}
+
+function attachDrag(container){
+  container.querySelectorAll('.cell').forEach(cell => {
+    cell.addEventListener('pointerdown', e => {
+      dragging = true;
+      dragMode = !selected.has(cell.dataset.key);
+      toggleCell(cell, dragMode);
+      e.preventDefault();
+    });
+    cell.addEventListener('pointerenter', () => {
+      if(dragging) toggleCell(cell, dragMode);
+    });
+  });
+  window.addEventListener('pointerup', () => { dragging = false; });
+}
+
+function toggleCell(cell, on){
+  const key = cell.dataset.key;
+  if(on){ selected.add(key); cell.classList.add('selected'); }
+  else{ selected.delete(key); cell.classList.remove('selected'); }
+  updateSelectedSummary();
+}
+
+function minutesOf(t){
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function addMinutes(t, add){
+  const total = minutesOf(t) + add;
+  const h = Math.floor(total / 60) % 24, m = total % 60;
+  return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+}
+
+// Merges consecutive selected slots on the same day into ranges, e.g. 8AM+8:30AM -> "8:00AM – 9:00AM".
+function computeRangesForDay(dayTimes, slotMinutes){
+  if(!dayTimes.length) return [];
+  const ranges = [];
+  let start = dayTimes[0], prev = dayTimes[0];
+  for(let i = 1; i < dayTimes.length; i++){
+    const t = dayTimes[i];
+    if(minutesOf(t) - minutesOf(prev) === slotMinutes){
+      prev = t;
+    } else {
+      ranges.push([start, addMinutes(prev, slotMinutes)]);
+      start = t; prev = t;
+    }
+  }
+  ranges.push([start, addMinutes(prev, slotMinutes)]);
+  return ranges;
+}
+
+function updateSelectedSummary(){
+  const el = document.getElementById('selectedSummary');
+  if(!el) return;
+  if(selected.size === 0){
+    el.innerHTML = '<p class="hover-empty">Nothing selected yet — click or drag across the grid.</p>';
     return;
   }
-
-  document.getElementById('entry').style.display = 'none';
-  document.getElementById('room').style.display = 'flex';
-  document.getElementById('roomNameLabel').textContent = document.getElementById('circleTitle').textContent;
-
-  addTile(myPeerId, displayName + ' (you)', localStream);
-
-  channel = sb.channel('circle:' + circleSlug, { config: { broadcast: { self:false } } });
-
-  channel.on('broadcast', { event:'join' }, ({ payload }) => {
-    if(payload.peerId === myPeerId) return;
-    if(!knownPeers.has(payload.peerId)){
-      knownPeers.add(payload.peerId);
-      createPeerConnection(payload.peerId, payload.name, true);
-    }
+  const byDay = {};
+  days.forEach(d => byDay[d] = []);
+  times.forEach(t => {
+    days.forEach(d => {
+      if(selected.has(d + '|' + t)) byDay[d].push(t);
+    });
   });
-
-  channel.on('broadcast', { event:'signal' }, ({ payload }) => {
-    if(payload.to !== myPeerId) return;
-    handleSignal(payload);
+  let html = '';
+  days.forEach(d => {
+    const dts = byDay[d];
+    if(!dts.length) return;
+    const ranges = computeRangesForDay(dts, plan.slot_minutes);
+    html += '<div class="range-day"><div class="day-name">' + fmtDay(d) + '</div>';
+    ranges.forEach(r => {
+      html += '<div class="range-line">' + fmtTime(r[0]) + ' – ' + fmtTime(r[1]) + '</div>';
+    });
+    html += '</div>';
   });
-
-  channel.on('broadcast', { event:'leave' }, ({ payload }) => {
-    removePeer(payload.peerId);
-  });
-
-  channel.on('broadcast', { event:'camstate' }, ({ payload }) => {
-    setTileCamState(payload.peerId, payload.camOn);
-  });
-
-  channel.subscribe((status) => {
-    if(status === 'SUBSCRIBED'){
-      channel.send({ type:'broadcast', event:'join', payload:{ peerId:myPeerId, name:displayName } });
-    }
-  });
-
-  window.addEventListener('beforeunload', () => {
-    channel.send({ type:'broadcast', event:'leave', payload:{ peerId:myPeerId } });
-  });
+  el.innerHTML = html || '<p class="hover-empty">Nothing selected yet.</p>';
 }
 
-function createPeerConnection(peerId, name, isInitiator){
-  const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-  peers[peerId] = pc;
+async function submitAvailability(){
+  const name = document.getElementById('respName').value.trim();
+  const msg = document.getElementById('respondMsg');
+  if(!name){ msg.textContent = 'Enter your name.'; msg.className = 'msg error'; return; }
+  if(selected.size === 0){ msg.textContent = 'Select at least one timeslot.'; msg.className = 'msg error'; return; }
 
-  localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-  pc.onicecandidate = (e) => {
-    if(e.candidate){
-      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'ice', data:e.candidate } });
-    }
-  };
-
-  pc.ontrack = (e) => {
-    addTile(peerId, name, e.streams[0]);
-    const camOn = localStream.getVideoTracks()[0].enabled;
-    channel.send({ type:'broadcast', event:'camstate', payload:{ peerId:myPeerId, camOn } });
-  };
-
-  if(isInitiator){
-    pc.onnegotiationneeded = async () => {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'offer', data:offer, name:displayName } });
-    };
-  }
-
-  return pc;
-}
-
-async function handleSignal(payload){
-  const { from, kind, data, name } = payload;
-  let pc = peers[from];
-
-  if(kind === 'offer'){
-    if(!pc){
-      knownPeers.add(from);
-      pc = createPeerConnection(from, name || 'Guest', false);
-    }
-    await pc.setRemoteDescription(new RTCSessionDescription(data));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:from, kind:'answer', data:answer } });
-  } else if(kind === 'answer'){
-    if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data));
-  } else if(kind === 'ice'){
-    if(pc){ try{ await pc.addIceCandidate(data); }catch(e){} }
+  msg.textContent = 'Saving…'; msg.className = 'msg';
+  try{
+    // Replace any earlier response from the same name so resubmitting updates it instead of duplicating.
+    await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses?plan_id=eq.' + plan.id + '&name=ilike.' + encodeURIComponent(name), {
+      method: 'DELETE',
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_PUBLISHABLE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify({ plan_id: plan.id, name, slots: Array.from(selected) })
+    });
+    if(!res.ok) throw new Error('request failed');
+    msg.textContent = 'Saved — thank you!'; msg.className = 'msg success';
+    await loadResults();
+  }catch(err){
+    msg.textContent = "Couldn't save — check your Supabase setup.";
+    msg.className = 'msg error';
   }
 }
 
-function initials(name){
-  const clean = name.replace(/\s*\(you\)\s*$/i, '').trim();
-  return clean.split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+async function loadResults(){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/meeting_plan_responses?plan_id=eq.' + plan.id + '&select=name,slots', {
+      headers: { 'apikey': SUPABASE_PUBLISHABLE_KEY }
+    });
+    responses = await res.json();
+    if(!res.ok) responses = [];
+  }catch(err){ responses = []; }
+  renderResults();
 }
 
-function addTile(peerId, name, stream){
-  let tile = document.getElementById('tile-' + peerId);
-  if(!tile){
-    tile = document.createElement('div');
-    tile.className = 'tile' + (peerId === myPeerId ? ' local' : '');
-    tile.id = 'tile-' + peerId;
-    tile.innerHTML = '<video autoplay playsinline' + (peerId===myPeerId ? ' muted' : '') + '></video>'
-      + '<div class="avatar" style="display:none;">'+initials(name)+'</div>'
-      + '<div class="tile-label"><span class="live-dot"></span>'+name+'</div>';
-    document.getElementById('grid').appendChild(tile);
+function showHoverInfo(key, names){
+  const el = document.getElementById('hoverInfo');
+  if(!el) return;
+  const [d, t] = key.split('|');
+  if(names.length === 0){
+    el.innerHTML = '<div class="range-day"><div class="day-name">' + fmtDay(d) + ', ' + fmtTime(t) + '</div>'
+      + '<p class="hover-empty">No one\'s free then — yet.</p></div>';
+  } else {
+    el.innerHTML = '<div class="range-day"><div class="day-name">' + fmtDay(d) + ', ' + fmtTime(t) + '</div>'
+      + '<p class="hover-names">' + names.join(', ') + '</p></div>';
   }
-  tile.querySelector('video').srcObject = stream;
-  updateCount();
-  layoutGrid();
 }
 
-function layoutGrid(){
-  const grid = document.getElementById('grid');
-  const tiles = Array.from(grid.children);
-  const n = tiles.length || 1;
-  const availW = window.innerWidth - 56;
-  const availH = window.innerHeight - 170;
-  const gap = 14;
+function renderResults(){
+  const counts = {};
+  responses.forEach(r => (r.slots || []).forEach(k => { counts[k] = (counts[k] || 0) + 1; }));
+  const max = Math.max(1, ...Object.values(counts));
 
-  const cols = Math.min(3, n);
-  const rows = Math.ceil(n / cols);
-
-  const tileW = Math.floor((availW - gap*(cols-1)) / cols);
-  const tileH = Math.floor((availH - gap*(rows-1)) / rows);
-
-  grid.style.display = 'flex';
-  grid.style.flexWrap = 'wrap';
-  grid.style.alignContent = 'center';
-  grid.style.justifyContent = 'center';
-
-  tiles.forEach(t => {
-    t.style.width = tileW + 'px';
-    t.style.height = tileH + 'px';
+  renderGrid('resultsGrid', false);
+  document.querySelectorAll('#resultsGrid .cell').forEach(cell => {
+    const key = cell.dataset.key;
+    const c = counts[key] || 0;
+    const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name);
+    if(c > 0){
+      const alpha = 0.18 + 0.7 * (c / max);
+      cell.style.background = 'rgba(139,168,136,' + alpha.toFixed(2) + ')';
+      cell.textContent = c;
+    }
+    cell.addEventListener('mouseenter', () => showHoverInfo(key, names));
+    cell.addEventListener('click', () => showHoverInfo(key, names));
   });
-}
-window.addEventListener('resize', layoutGrid);
 
-function removePeer(peerId){
-  if(peers[peerId]){ peers[peerId].close(); delete peers[peerId]; }
-  knownPeers.delete(peerId);
-  const tile = document.getElementById('tile-' + peerId);
-  if(tile) tile.remove();
-  updateCount();
-  layoutGrid();
-}
+  document.getElementById('responseCount').textContent = responses.length + (responses.length === 1 ? ' response' : ' responses');
 
-function updateCount(){
-  const n = document.getElementById('grid').children.length;
-  document.getElementById('peerCount').textContent = n + (n===1 ? ' here' : ' here');
-}
-
-function toggleMic(){
-  const track = localStream.getAudioTracks()[0];
-  track.enabled = !track.enabled;
-  document.getElementById('micBtn').classList.toggle('off', !track.enabled);
-}
-function toggleCam(){
-  const track = localStream.getVideoTracks()[0];
-  track.enabled = !track.enabled;
-  document.getElementById('camBtn').classList.toggle('off', !track.enabled);
-  setTileCamState(myPeerId, track.enabled);
-  if(channel) channel.send({ type:'broadcast', event:'camstate', payload:{ peerId:myPeerId, camOn:track.enabled } });
-}
-
-function setTileCamState(peerId, camOn){
-  const tile = document.getElementById('tile-' + peerId);
-  if(!tile) return;
-  tile.querySelector('video').classList.toggle('hidden', !camOn);
-  tile.querySelector('.avatar').style.display = camOn ? 'none' : 'flex';
-}
-function leaveRoom(){
-  if(channel) channel.send({ type:'broadcast', event:'leave', payload:{ peerId:myPeerId } });
-  Object.values(peers).forEach(pc => pc.close());
-  if(localStream) localStream.getTracks().forEach(t => t.stop());
-  window.location.href = 'index.html';
+  const sorted = Object.entries(counts).filter(([,c]) => c > 0).sort((a,b) => b[1] - a[1]).slice(0,5);
+  const topEl = document.getElementById('topSlots');
+  if(sorted.length === 0){
+    topEl.innerHTML = '<p class="empty">No responses yet — be the first to add your availability below.</p>';
+  } else {
+    topEl.innerHTML = sorted.map(([key, c]) => {
+      const [d, t] = key.split('|');
+      const names = responses.filter(r => (r.slots || []).includes(key)).map(r => r.name).join(', ');
+      return '<div class="top-slot"><strong>' + fmtDay(d) + ', ' + fmtTime(t) + '</strong><span>' + c + (c === 1 ? ' available — ' : ' available — ') + names + '</span></div>';
+    }).join('');
+  }
 }
 </script>
 </body>
