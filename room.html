@@ -33,7 +33,7 @@
   .room-name span{color:var(--terracotta);}
   .count{font-size:12px; opacity:0.5; letter-spacing:0.05em;}
 
-  #grid{flex:1; gap:14px; padding:20px 28px; overflow:hidden;}
+  #grid{flex:1; display:flex; flex-wrap:wrap; align-content:center; justify-content:center; gap:14px; padding:20px 28px; overflow:hidden;}
   .tile{position:relative; background:#2a1a17; border-radius:16px; overflow:hidden; display:flex; align-items:center; justify-content:center;}
   .tile video{width:100%; height:100%; object-fit:contain; background:#1c1210;}
   .tile video.hidden{display:none;}
@@ -44,6 +44,13 @@
   .tile.warn .live-dot{background:#e0b34d;}
   .tile.lost .live-dot{background:#8a8a8a;}
 
+  /* Screen-share focus mode: one big stage tile, the rest in a scrollable side column */
+  #grid.focus-mode{flex-wrap:nowrap; align-items:stretch;}
+  #grid.focus-mode .tile.stage-tile{flex:1; width:auto !important; height:auto !important;}
+  #sidebar{display:none; flex-direction:column; gap:10px; width:200px; flex-shrink:0; overflow-y:auto;}
+  #grid.focus-mode #sidebar{display:flex;}
+  #sidebar .tile{width:100% !important; height:130px !important; flex-shrink:0;}
+
   .controls{display:flex; justify-content:center; gap:14px; padding:24px; border-top:1px solid rgba(255,248,241,0.08);}
   .ctrl{width:52px; height:52px; border-radius:50%; border:1px solid rgba(255,248,241,0.15); background:rgba(255,248,241,0.05); color:var(--warmwhite); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .15s;}
   .ctrl:hover{background:rgba(255,248,241,0.12);}
@@ -52,7 +59,7 @@
   .ctrl.leave{background:var(--terracotta); border-color:var(--terracotta);}
   .ctrl svg{width:20px; height:20px;}
 
-  @media(max-width:680px){ header{padding:14px 18px;} #grid{padding:12px;} }
+  @media(max-width:680px){ header{padding:14px 18px;} #grid{padding:12px;} #sidebar{width:120px;} #sidebar .tile{height:90px !important;} }
 </style>
 </head>
 <body>
@@ -72,7 +79,7 @@
     <div class="room-name">circle<span>.</span> — <span id="roomNameLabel"></span></div>
     <div class="count" id="peerCount">1 here</div>
   </header>
-  <div id="grid"></div>
+  <div id="grid"><div id="sidebar"></div></div>
   <div class="controls">
     <div class="ctrl" id="micBtn" onclick="toggleMic()" title="Mute/unmute">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 15a3.5 3.5 0 0 0 3.5-3.5V6a3.5 3.5 0 0 0-7 0v5.5A3.5 3.5 0 0 0 12 15z"/><path d="M6 11a6 6 0 0 0 12 0"/><path d="M12 17v3"/></svg>
@@ -115,12 +122,18 @@ let displayName = '';
 let channel = null;
 let screenStream = null;
 let isScreenSharing = false;
+let sharingPeerId = null; // peerId of whoever is currently presenting their screen (local or remote)
 const screenShareSupported = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
 
 const peers = {};          // peerId -> RTCPeerConnection
 const knownPeers = new Set();
 const peerNames = {};      // peerId -> display name (kept across reconnects)
 const reconnectAttempts = {};
+const makingOffer = {};    // peerId -> true while we're mid-createOffer (for glare handling)
+
+// Deterministic tie-breaker so two simultaneous offers never collide: exactly one
+// side is "polite" per pair, and only the polite side backs off during a clash.
+function isPolite(otherPeerId){ return myPeerId > otherPeerId; }
 
 if(!circleSlug){
   showInvalid();
@@ -188,7 +201,7 @@ async function enterRoom(){
       peerNames[payload.peerId] = payload.name;
       if(!knownPeers.has(payload.peerId)){
         knownPeers.add(payload.peerId);
-        createPeerConnection(payload.peerId, payload.name, true, false);
+        createPeerConnection(payload.peerId, payload.name, false);
       }
     });
 
@@ -205,6 +218,12 @@ async function enterRoom(){
       setTileCamState(payload.peerId, payload.camOn);
     });
 
+    channel.on('broadcast', { event:'sharing' }, ({ payload }) => {
+      if(payload.sharing) sharingPeerId = payload.peerId;
+      else if(sharingPeerId === payload.peerId) sharingPeerId = null;
+      applyLayout();
+    });
+
     channel.subscribe((status) => {
       if(status === 'SUBSCRIBED'){
         channel.send({ type:'broadcast', event:'join', payload:{ peerId:myPeerId, name:displayName } });
@@ -213,6 +232,7 @@ async function enterRoom(){
       }
     });
   }catch(err){
+    console.error('Room setup failed:', err);
     alert('Something went wrong setting up the room. Please refresh and try again.');
     return;
   }
@@ -222,7 +242,7 @@ async function enterRoom(){
   });
 }
 
-function createPeerConnection(peerId, name, isInitiator, forceRelay){
+function createPeerConnection(peerId, name, forceRelay){
   peerNames[peerId] = name;
   const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceTransportPolicy: forceRelay ? 'relay' : 'all' });
   peers[peerId] = pc;
@@ -250,60 +270,75 @@ function createPeerConnection(peerId, name, isInitiator, forceRelay){
       setTileConnectionState(peerId, 'warn');
       setTimeout(() => {
         if(peers[peerId] && peers[peerId].iceConnectionState === 'disconnected'){
-          handleConnectionFailure(peerId, isInitiator);
+          handleConnectionFailure(peerId);
         }
       }, 4000);
     } else if(state === 'failed'){
-      handleConnectionFailure(peerId, isInitiator);
+      handleConnectionFailure(peerId);
     }
   };
 
-  if(isInitiator){
-    pc.onnegotiationneeded = async () => {
-      try{
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'offer', data:offer, name:displayName, forceRelay:!!forceRelay } });
-      }catch(err){ /* transient; a later retry will cover it */ }
-    };
-  }
+  // Either side may need to (re)negotiate; collisions are resolved in handleSignal via isPolite().
+  pc.onnegotiationneeded = async () => {
+    if(pc.signalingState !== 'stable') return;
+    try{
+      makingOffer[peerId] = true;
+      const offer = await pc.createOffer();
+      if(pc.signalingState !== 'stable') return;
+      await pc.setLocalDescription(offer);
+      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:peerId, kind:'offer', data:pc.localDescription, name:displayName, forceRelay:!!forceRelay } });
+    }catch(err){
+      console.warn('Negotiation failed for', peerId, err);
+    }finally{
+      makingOffer[peerId] = false;
+    }
+  };
 
   return pc;
 }
 
-function handleConnectionFailure(peerId, isInitiator){
+function handleConnectionFailure(peerId){
   const attempts = reconnectAttempts[peerId] || 0;
-  if(attempts >= 2){
+  if(attempts >= 3){
     setTileConnectionState(peerId, 'lost');
     return;
   }
   reconnectAttempts[peerId] = attempts + 1;
   setTileConnectionState(peerId, 'warn');
-  if(!isInitiator) return; // the side that started the connection drives the rebuild
   const name = peerNames[peerId] || 'Guest';
   if(peers[peerId]){ peers[peerId].close(); delete peers[peerId]; }
-  createPeerConnection(peerId, name, true, true); // retry forced through TURN relay only
+  delete makingOffer[peerId];
+  createPeerConnection(peerId, name, true); // retry forced through TURN relay only; onnegotiationneeded re-offers automatically
 }
 
 async function handleSignal(payload){
-  const { from, kind, data, name, forceRelay } = payload;
+  const { from, kind, data, name } = payload;
   let pc = peers[from];
 
   try{
     if(kind === 'offer'){
-      if(pc){ pc.close(); delete peers[from]; }
-      knownPeers.add(from);
-      pc = createPeerConnection(from, name || peerNames[from] || 'Guest', false, !!forceRelay);
+      if(!pc){
+        knownPeers.add(from);
+        pc = createPeerConnection(from, name || peerNames[from] || 'Guest', !!payload.forceRelay);
+      }
+      const offerCollision = makingOffer[from] || pc.signalingState !== 'stable';
+      const polite = isPolite(from);
+      if(offerCollision && !polite) return; // impolite side ignores the incoming offer; its own offer wins
+      if(offerCollision){
+        await pc.setLocalDescription({ type:'rollback' });
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(data));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:from, kind:'answer', data:answer } });
+      channel.send({ type:'broadcast', event:'signal', payload:{ from:myPeerId, to:from, kind:'answer', data:pc.localDescription } });
     } else if(kind === 'answer'){
       if(pc) await pc.setRemoteDescription(new RTCSessionDescription(data));
     } else if(kind === 'ice'){
       if(pc){ try{ await pc.addIceCandidate(data); }catch(e){} }
     }
-  }catch(err){ /* signaling race during a reconnect; safe to ignore */ }
+  }catch(err){
+    console.warn('Signal handling error:', err);
+  }
 }
 
 function initials(name){
@@ -320,17 +355,18 @@ function addTile(peerId, name, stream){
     tile.innerHTML = '<video autoplay playsinline' + (peerId===myPeerId ? ' muted class="mirrored"' : '') + '></video>'
       + '<div class="avatar" style="display:none;">'+initials(name)+'</div>'
       + '<div class="tile-label"><span class="live-dot"></span><span class="tile-label-text">'+name+'</span></div>';
-    document.getElementById('grid').appendChild(tile);
+    document.getElementById('grid').insertBefore(tile, document.getElementById('sidebar'));
   }
   tile.querySelector('video').srcObject = stream;
   updateCount();
-  layoutGrid();
+  applyLayout();
   adjustBitrates();
 }
 
+// Normal mode: even flex-wrap grid, sized to fill the available space.
 function layoutGrid(){
   const grid = document.getElementById('grid');
-  const tiles = Array.from(grid.children);
+  const tiles = Array.from(grid.querySelectorAll(':scope > .tile'));
   const n = tiles.length || 1;
   const availW = window.innerWidth - 56;
   const availH = window.innerHeight - 170;
@@ -342,32 +378,57 @@ function layoutGrid(){
   const tileW = Math.floor((availW - gap*(cols-1)) / cols);
   const tileH = Math.floor((availH - gap*(rows-1)) / rows);
 
-  grid.style.display = 'flex';
-  grid.style.flexWrap = 'wrap';
-  grid.style.alignContent = 'center';
-  grid.style.justifyContent = 'center';
-
   tiles.forEach(t => {
     t.style.width = tileW + 'px';
     t.style.height = tileH + 'px';
   });
 }
-window.addEventListener('resize', layoutGrid);
+
+// Focus mode: whoever is sharing their screen becomes one large stage tile;
+// everyone else moves into a scrollable column on the right.
+function applyLayout(){
+  const grid = document.getElementById('grid');
+  const sidebar = document.getElementById('sidebar');
+  const stageTile = sharingPeerId ? document.getElementById('tile-' + sharingPeerId) : null;
+
+  if(stageTile){
+    grid.classList.add('focus-mode');
+    grid.insertBefore(stageTile, sidebar);
+    stageTile.classList.add('stage-tile');
+    document.querySelectorAll('.tile').forEach(t => {
+      if(t !== stageTile){
+        t.classList.remove('stage-tile');
+        t.style.width = ''; t.style.height = '';
+        sidebar.appendChild(t);
+      }
+    });
+  } else {
+    grid.classList.remove('focus-mode');
+    document.querySelectorAll('.tile').forEach(t => {
+      t.classList.remove('stage-tile');
+      grid.insertBefore(t, sidebar);
+    });
+    layoutGrid();
+  }
+}
+window.addEventListener('resize', applyLayout);
 
 function removePeer(peerId){
   if(peers[peerId]){ peers[peerId].close(); delete peers[peerId]; }
   knownPeers.delete(peerId);
   delete reconnectAttempts[peerId];
   delete peerNames[peerId];
+  delete makingOffer[peerId];
+  if(sharingPeerId === peerId) sharingPeerId = null;
   const tile = document.getElementById('tile-' + peerId);
   if(tile) tile.remove();
   updateCount();
-  layoutGrid();
+  applyLayout();
   adjustBitrates();
 }
 
 function updateCount(){
-  const n = document.getElementById('grid').children.length;
+  const n = document.querySelectorAll('.tile').length;
   document.getElementById('peerCount').textContent = n + (n===1 ? ' here' : ' here');
 }
 
@@ -427,22 +488,26 @@ async function toggleScreenShare(){
   }
   const screenTrack = screenStream.getVideoTracks()[0];
   isScreenSharing = true;
+  sharingPeerId = myPeerId;
   document.getElementById('screenBtn').classList.add('active');
-  applyOutgoingVideoTrack(screenTrack);
+  applyOutgoingVideoTrack(screenTrack, false); // false = don't mirror a screen share
   updateSelfLabel(true);
+  if(channel) channel.send({ type:'broadcast', event:'sharing', payload:{ peerId:myPeerId, sharing:true } });
+  applyLayout();
   screenTrack.onended = () => stopScreenShare();
 }
 
 function stopScreenShare(){
   if(!isScreenSharing) return;
   isScreenSharing = false;
+  if(sharingPeerId === myPeerId) sharingPeerId = null;
   document.getElementById('screenBtn').classList.remove('active');
   if(screenStream) screenStream.getTracks().forEach(t => t.stop());
   screenStream = null;
 
   const camTrack = (localStream && !videoUnavailable) ? localStream.getVideoTracks()[0] : null;
   if(camTrack){
-    applyOutgoingVideoTrack(camTrack);
+    applyOutgoingVideoTrack(camTrack, true); // true = restore the mirrored camera preview
   } else {
     Object.values(peers).forEach(pc => {
       const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
@@ -452,9 +517,11 @@ function stopScreenShare(){
     if(myTile){ myTile.querySelector('video').srcObject = null; myTile.querySelector('.avatar').style.display = 'flex'; }
   }
   updateSelfLabel(false);
+  if(channel) channel.send({ type:'broadcast', event:'sharing', payload:{ peerId:myPeerId, sharing:false } });
+  applyLayout();
 }
 
-function applyOutgoingVideoTrack(track){
+function applyOutgoingVideoTrack(track, mirrored){
   Object.values(peers).forEach(pc => {
     const sender = pc.getSenders().find(s => s.track && s.track.kind === 'video');
     if(sender){ sender.replaceTrack(track).catch(()=>{}); }
@@ -462,8 +529,10 @@ function applyOutgoingVideoTrack(track){
   });
   const myTile = document.getElementById('tile-' + myPeerId);
   if(myTile){
+    const video = myTile.querySelector('video');
     const audioTracks = localStream ? localStream.getAudioTracks() : [];
-    myTile.querySelector('video').srcObject = new MediaStream([track, ...audioTracks]);
+    video.srcObject = new MediaStream([track, ...audioTracks]);
+    video.classList.toggle('mirrored', !!mirrored);
     myTile.querySelector('.avatar').style.display = 'none';
   }
 }
